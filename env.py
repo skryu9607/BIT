@@ -2,6 +2,7 @@ import numpy as np
 from scipy.spatial import distance
 from scipy.optimize import fsolve
 from sympy import sympify,solve
+from kinematics import Kinematics
 # set goal and start
 class GS: # Goal and Start
     def __init__(self,goal,start):
@@ -74,17 +75,18 @@ class Winds:
 
 # Cost model
 class Cost:
-    def __init__(self,location,wind)
+    def __init__(self,location,wind):
+        self.xyz = location
+        self.wind = wind    
 # Motion Primitives
     
 
 '''
 Lattice에 random하게 winds가 분포된다. 세기도 random하게.
 
-
 '''
 class Map:
-    det __init__
+    det __init__(self):
 
 # Envs end
 
