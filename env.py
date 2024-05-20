@@ -93,7 +93,9 @@ class Thermals:
         self.type = type
         self.location = location
     def map(self):
-        if type == "bubble":
+        if type == "chimmney":
+            
+        elif type == "bubble":
             pass
         elif type == "plume":
             pass
