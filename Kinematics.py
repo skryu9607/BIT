@@ -22,4 +22,10 @@ class Kinematics:
         self.z += self.dot_state[2] * self.ctl[2]
         self.fpa += self.dot_state[3] * self.ctl[2]
         self.heading += self.dot_state[4] * self.ctl[2]
-    
+
+'''
+It is assumed that an onboard controller is able to follow heading, airspeed, and throttle commands. 
+Moreover, it is assumed that response to step changes in commands is very fast, compared with the duration of a particular command.
+Hence, a point-mass model is sufficient to describe vehicle motion for planning purposes. 
+
+'''
