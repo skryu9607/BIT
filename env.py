@@ -2,14 +2,11 @@ import numpy as np
 from scipy.spatial import distance
 from scipy.optimize import fsolve
 from sympy import sympify,solve
-<<<<<<< HEAD
 from kinematics import Kinematics
-=======
 from mpl_toolkits import mplot3d
 import matplotlib.pyplot as plt
-from skimage import measure
-
->>>>>>> c428d809f0308a2d1f32266d63bcbb894a29a2c1
+#from skimage import measure
+from bencatel import Allen_Ben
 # set goal and start
 class GS: # Goal and Start
     def __init__(self,goal,start):
@@ -94,7 +91,9 @@ class Thermals:
         self.location = location
     def map(self):
         if type == "chimmney":
-            
+            ABen = Allen_Ben()
+            z = 100 # Our wanted estimation.
+            X, Y, R, w_total = ABen.estimate(z)
         elif type == "bubble":
             pass
         elif type == "plume":
