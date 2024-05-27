@@ -92,7 +92,7 @@ class Thermals:
     def map(self):
         if type == "chimmney":
             ABen = Allen_Ben()
-            z = 100 # Our wanted estimation.
+            z = 800 # Our wanted estimation.
             X, Y, R, w_total = ABen.estimate(z)
         elif type == "bubble":
             pass
