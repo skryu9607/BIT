@@ -104,12 +104,12 @@ class Thermals:
             print("This type is out of scope.")
 
 
-# Wind set
+# Wind set 
 class Winds: 
     def __init__(self,wind_intensity):
         self.speed = wind_intensity
     def wind_direction(self):
-        wind_direct = []
+        wind_direct = [] 
         SET = [1,0,-1]
         for i in SET:
             for j in SET:
