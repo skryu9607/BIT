@@ -119,15 +119,18 @@ class Winds:
             if sum(wind_direct[i]) != 0:
                 wind_direct[i] = [float(wind_direct[i][j])/sum(wind_direct[i]) for j in range(3)]
         return np.array(wind_direct)
+# To keep the translational invariance, WIND vector의 discretize로 정리 ->  the database of motion primitives.
 
 # Cost model
-class Cost:
-    def __init__(self,location,wind):
-        self.xyz = location
-        self.wind = wind
-        
+def cost(state, control_input,duration):
+    g = 9.81
+    cost_f = # internal fuel consumption
+    cost_d = c(x,xt)  
+    print(cost_h,cost_t,cost_f)
+    return cost_h + cost_t + cost_f
+
 # Motion Primitives
-    
+
 
 '''
 Lattice에 random하게 winds가 분포된다. 세기도 random하게.
