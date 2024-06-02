@@ -7,16 +7,45 @@ from mpl_toolkits import mplot3d
 import matplotlib.pyplot as plt
 #from skimage import measure
 from bencatel import Allen_Ben
+
+class Node:
+    def __init__(self,x,y,z):
+        # x,y,z : State
+        self.x = x
+        self.y = y
+        self.z = z
+        self.parent = None
+class Edge:
+    def __init__(self,cr,fpa,duration):
+        # cr,fpa : control input
+        self.cr = cr
+        self.fpa = fpa
+        # duration  is a coasting time
+        self.dur = duration
+        # edges are the curves between start_node and end_node
+        self.sta = None
+        self.end = None
+        
 # set goal and start
-class GS: # Goal and Start
+class Tree:
     def __init__(self,goal,start):
-        self.goal = goal
         self.start = start
-    def shortest_length(self,a,b):
-        return distance.euclidean(a,b)
+        self.goal = goal
+        
+        self.r = 4.0
+        self.V = set()
+        self.E = set()
+        
+        # QE,QV
+        self.QE = set()
+        self.QV = set()
+        
+        # Parent Nodes
+        self.v_old = set()
+        
 ''' Thermal and obstacles setting '''
 class Obstacles:
-    def __init__(self,x0,y0,z0,a,b,c,d,e,f):
+    def __init__(self,xyz0,abc,shape):
         '''
         x0,y0,z0 : obstacle center
         a,b,c : axes length of the obstacle
@@ -25,9 +54,9 @@ class Obstacles:
         If d = e = 1 ,f > 1 : a cylinder
            d > 1 , e > 1, f > 1 : a cuboid 
         '''
-        self.xyz0 = np.array([x0,y0,z0])
-        self.abc = np.array([a,b,c])  
-        self.shape = np.array([d,e,f]) 
+        self.xyz0 = xyz0
+        self.abc = abc  
+        self.shape = shape 
         self.F = None
     def map(self,pos):
         x,y,z = pos[0],pos[1],pos[2]
@@ -103,7 +132,6 @@ class Thermals:
         else:
             print("This type is out of scope.")
 
-
 # Wind set 
 class Winds: 
     def __init__(self,wind_intensity):
@@ -121,24 +149,20 @@ class Winds:
         return np.array(wind_direct)
 # To keep the translational invariance, WIND vector의 discretize로 정리 ->  the database of motion primitives.
 
-# Cost model
+# Cost model -> bit.py에 있음
+'''
 def cost(state, control_input,duration):
+    # state : [x,y,z]
+    # control_input : [course rate, fpa]
+    # duration : t_d
     g = 9.81
-    cost_f = # internal fuel consumption
-    cost_d = c(x,xt)  
+    kp = g * 
+    T = max(D + m*g*np.sin(fpa),0)
+    cost_f =  T * kp # internal fuel consumption
+    cost_d = c(x,xt,u1,u2) / va
+    
     print(cost_h,cost_t,cost_f)
     return cost_h + cost_t + cost_f
 
 # Motion Primitives
-
-
 '''
-Lattice에 random하게 winds가 분포된다. 세기도 random하게.
-
-'''
-class Map:
-    det __init__(self):
-
-# Envs end
-
-
