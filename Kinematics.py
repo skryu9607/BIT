@@ -1,7 +1,7 @@
 import numpy as np
 
 class Kinematics:
-    def __init__(self,x,y,z,fpa,heading):
+    def __init__(self,x,y,z,heading,fpa):
         self.x = x
         self.y = y
         self.z = z

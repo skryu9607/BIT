@@ -16,7 +16,7 @@ import utils
 import plotting
 
 class BITStar:
-    def __init__(self,x_start,x_goal,eta,va = 22, iter_max = 3000):
+    def __init__(self,x_start,x_goal,eta, va = 22, iter_max = 3000):
         self.x_start = Node(x_start)
         self.x_goal = Node(x_goal)
         self.eta = eta
@@ -91,16 +91,18 @@ class BITStar:
         self.g_T[self.x_start] = 0.0
         self.g_T[self.x_goal] = np.inf
         # At first glance, the batch size is just the distance between start point and the goal point. 
-        cMin, theta = self.calc_dist_and_angle(self.x_start, self.x_goal)
-        C = self.RotationToWorldFrame(self.x_start, self.x_goal, cMin)
-        # Rotation matrix C.
+        Lmin, theta = self.calc_dist_and_angle(self.x_start, self.x_goal)
+        # Center points
         xCenter = np.array([[(self.x_start.x + self.x_goal.x) / 2.0],
                             [(self.x_start.y + self.x_goal.y) / 2.0],
                             [(self.x_start.z + self.x_goal.z) / 2.0]])
-        return theta,cMin,xCenter,C
+        # Rotation matrix C.
+        C = self.RotationToWorldFrame(self.x_start, self.x_goal, Lmin)
+        
+        return Lmin,theta,xCenter,C
     
     def planning(self):
-        theta, cMin, xCenter, C = self.prepare()
+        Lmin,theta,xCenter, C = self.prepare()
         for slack1 in range(self.iter_max):
             # End of batch and also batch creation
             # if the set is empty, the set() is false.
@@ -122,8 +124,7 @@ class BITStar:
                 # Generating new samples
                 x_new = self.sample(m)
                 
-                
-                
+                 
     def ExtractSolution(self):
         path = self.x_goal
         path_x,path_y,path_z = path.x,path.y,path.z
@@ -136,11 +137,31 @@ class BITStar:
         return path_x,path_y,path_z
                 
                 
-    # TODO : sample(m)
-    
+    # TODO : sample(m) <- HOW???
+    def Sample(self,m,cMax,Lmin,xCenter,C):
+        if cMax < np.inf:
+            return self.SampleEllipsoid(m,cMax,Lmin,xCenter,C)
+        else:
+            return self.SampleFreeSpace(m)
+        
+    def SampleFreeSpace(self,m):
+        delta = 1.0
+        Sample = set()
+        
+        slack2 = 0
+        while slack2<m:
+            node= Node(random.uniform(self.x_range[0] + delta, self.x_range[1] - delta),
+                        random.uniform(self.y_range[0] + delta, self.y_range[1] - delta),
+                        random.uniform(self.z_range[0] + delta, self.z_range[1] - delta))
+            if not Obstacles.collide([node.x,node.y,node.z]):
+                Sample.add(node)
+                slack2 += 1
+        return Sample
+    def SampleEllipsoid(m,cMax,Lmin,xCenter,C):
+        pass
     # TODO : near(rho, x, X)
 
-    # TODO : 
+    # TODO : Pruning
            
     def prune(self,c_sol):
         '''
@@ -155,14 +176,31 @@ class BITStar:
             self.Tree.v.discard(x)
             self.Tree.Q.discard(x.parent,x)
             
-            
     def str_dist(start,end):
         return math.hypot(start.x-end.x,start.y-end.y,start.z-end.z)
     
     def cal_dist(start,end,u1,u2,duration):
         # TODO : the real cost value is different by not only obstacles but curves.
+        ## TODO ## Motion primtives때 미리 구하기.
+        wind = WInd(start)
+        trajectories = []
+        lengths = []
         
-        pass
+        control_command = [u1,u2]
+        kinematics = Kinematics(start.x,start.y,start.z,u1,u2)
+        trajectory = []
+
+        for _ in range(duration):
+            kinematics.dot(wind, control_command, self.va)
+            kinematics.update()
+            trajectory.append((kinematics.x, kinematics.y, kinematics.z))
+        
+        trajectory = np.array(trajectory)
+        trajectories.append(trajectory)
+
+        # length of 궤적
+        length = np.sum(np.sqrt(np.sum(np.diff(trajectory, axis=0)**2, axis=1)))
+        return length
     def cost(self,x,u1,u2,vg,duration):
         ''' vg 이런거는 관계식이 아직 안 밝혀짐.'''
         D = 100 # 임의로 설정.
@@ -175,13 +213,13 @@ class BITStar:
         return self.cal_dist(self.start,x,u1,u2,duration)/vg + (fuel_consumption)/vg
     
     def g_estimated(self,x):
-        return 0 + self.str_dist(self.x_start, x) / (self.va)
+        return 0 + self.str_dist(self.x_start, x) / (self.vg)
     
     def h_estimated(self,x):
-        return 0 + self.str_dist(x,self.x_goal) / (self.va)
+        return 0 + self.str_dist(x,self.x_goal) / (self.vg)
     
     def f_estimated(self,x):
-        return self.g_estimated(x) + self.h_estimated(x) / (self.va)
+        return self.g_estimated(x) + self.h_estimated(x) 
     
     def BestVertexQueueValue(self):
         if not self.Tree.QV:
@@ -209,7 +247,27 @@ class BITStar:
             return None
         e_value = {(v,x,u1,u2) :}
         
-        
+    @staticmethod
+    def calc_dist_and_angle(node_start, node_end):
+        dx = node_end.x - node_start.x
+        dy = node_end.y - node_start.y
+        dz = node_end.z - node_start.z
+        return math.hypot(dx, dy,dz), math.atan2(dy, dx)
+    
+    @staticmethod
+    def RotationToWorldFrame(x_start, x_goal, L):
+        a1 = np.array([[(x_goal.x - x_start.x) / L],
+                       [(x_goal.y - x_start.y) / L], 
+                       [(x_goal.z - x_start.z) / L]])
+        e1 = np.array([[1.0], [0.0], [0.0]])
+        # @ : matrix multiplication using the "@" operator in Numpy.
+        M = a1 @ e1.T
+        # Eigen value, Eigen vector, 
+        # To find the optimal rotation between two 3D vectors.
+        U, _, V_T = np.linalg.svd(M, True, True)
+        #C = U @ np.diag([1.0, 1.0, np.linalg.det(U) * np.linalg.det(V_T.T)]) @ V_T
+        C = V_T @ U.T
+        return C
     # static method는 정적메소드로, python instance 상태와 무관할때 유용하게 쓰인다.
     @staticmethod 
     def draw_ellipse(x_center, c_best, dist, theta):
