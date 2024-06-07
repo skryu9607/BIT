@@ -10,7 +10,11 @@ class Node:
         self.x = n[0]
         self.y = n[1]
         self.parent = None
-
+class MP:
+    def __init__(self,course_angle_rate,flight_path_angle,duration):
+        self.car = course_angle_rate
+        self.fpa = flight_path_angle
+        self.dra = duration 
 class RRT:
     def __init__(self, s_start,s_goal,step_len,goal_sample_rate):
         self.s_start = Node(s_start)

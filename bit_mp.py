@@ -14,9 +14,6 @@ from scipy.spatial.transform import Rotation as Rot
 from env import Node,Edge,Tree,Obstacles,Thermals
 import utils
 import plotting
-# Static method : cl
-
-
 
 class BITStar:
     def __init__(self,x_start,x_goal,eta,va = 22, iter_max = 3000):
@@ -45,18 +42,47 @@ class BITStar:
         # calculated by the cost accumulation followed by a series of parent node.
         self.g_T =  dict() 
         
-        
+    # TODO :  Thermals 연결하기. 
     def draw_things(self):
         # Adding obstacles
+        xyz1 = [1000,1000,1000]
+        abc = np.array([10,10,10])
+        shape = np.array([1,1,2])
+        obs1 = Obstacles(xyz1,abc,shape)
+        obs1.draw()
+        
+        xyz1 = [500,-1000,500]
+        abc = np.array([10,10,10])
+        shape = np.array([1,1,2])
+        obs1 = Obstacles(xyz1,abc,shape)
+        obs1.draw()
+        
         xyz0 = [1000,1000,1000]
         abc = np.array([10,10,10])
         shape = np.array([1,1,2])
         obs1 = Obstacles(xyz0,abc,shape)
         obs1.draw()
+        
         # Adding thermal updrafts
         thermal_location = [2000,2000,2000]
         thm1 = Thermals(thermal_location,type = "chimmney")
         thm1.draw()
+        
+        # Adding thermal updrafts
+        thermal_location = [2000,2000,2000]
+        thm1 = Thermals(thermal_location,type = "chimmney")
+        thm1.draw()
+        
+        # Adding thermal updrafts
+        thermal_location = [2000,2000,2000]
+        thm1 = Thermals(thermal_location,type = "chimmney")
+        thm1.draw()
+        
+        # Adding thermal updrafts
+        thermal_location = [2000,2000,2000]
+        thm1 = Thermals(thermal_location,type = "chimmney")
+        thm1.draw()
+        
         
     def prepare(self):
         self.Tree.V.add(self.x_start)

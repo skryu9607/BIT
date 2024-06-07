@@ -32,7 +32,7 @@ class Tree:
         self.start = start
         self.goal = goal
         
-        self.r = 4.0
+        self.r = 4.0 * 2
         self.V = set()
         self.E = set()
         
