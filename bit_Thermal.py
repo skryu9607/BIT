@@ -19,7 +19,7 @@ from scipy.spatial.transform import Rotation as Rot
 from env import Node,Edge,Tree,Obstacles,Thermals
 import utils
 import plotting
-
+from wind_model_v2 import WINDS, Thermals
 class Tree:
     def __init__(self, x_start, x_goal):
         self.x_start = x_start
@@ -61,8 +61,15 @@ class BITStar:
         # cost follow the tree
         # calculated by the cost accumulation followed by a series of parent node.
         self.g_T =  dict() 
+    def WIND(self):
+        # Ambient wind
+        ambient_wind_speed = [1,0,0]
+        amb = WINDS(seed = 1, wind_speed = ambient_wind_speed)
+        # Thermal
+        thm1 = Thermals(zi = 500, w_star = 0, xc = 3000, yc = 3000)
         
-
+        # Concatenation of each elements of wind vector
+        
     def draw_things(self):
         # Adding obstacles
         xyz0 = [1000,1000,1000]
@@ -187,22 +194,40 @@ class BITStar:
                        if self.f_estimated(v) <= cBest and self.f_estimated(w) <= cBest}
         self.X_sample.update({v for v in self.Tree.V if self.g_T[v] == np.inf})
         self.Tree.V = {v for v in self.Tree.V if self.g_T[v] < np.inf}
-
-    def cost(self, start, end):
+    def interpolate_points(start, end, num_points):
+        points = []
+        for i in range(num_points + 1):
+            t = i / num_points
+            x = (1 - t) * start.x + t * end.x
+            y = (1 - t) * start.y + t * end.y
+            z = (1 - t) * start.z + t * end.z
+            points.append((x, y,z))
+        return points
+    def cost(self, start, end, n = 6):
         if self.utils.is_collision(start, end):
             return np.inf
-
+        # wind velocity, 
+        points = self.interpolate_points(start,end,n)
+        if self.utils.is_collision(start,end,thermals):
+            flagTher = True
+        if flagTher:
+            points = 
+        
+        wind = self.WIND.(start)
+        
+        
         return self.calc_dist(start, end)
     # estimation part should be changed. Not only distance but also energy cost.
     def f_estimated(self, node):
         return self.g_estimated(node) + self.h_estimated(node)
 
     def g_estimated(self, node):
-        return self.calc_dist(self.x_start, node)
-
+        #return self.calc_dist(self.x_start, node)
+        return heurstics(self.x_start,node)
     def h_estimated(self, node):
-        return self.calc_dist(node, self.x_goal)
-
+        #return self.calc_dist(node, self.x_goal)
+        return heurstics(self.x_start,node)
+    
     def Sample(self, m, cMax, cMin, xCenter, C):
         if cMax < np.inf:
             return self.SampleEllipsoid(m, cMax, cMin, xCenter, C)
@@ -325,7 +350,8 @@ class BITStar:
     @staticmethod
     def RotationToWorldFrame(x_start, x_goal, L):
         a1 = np.array([[(x_goal.x - x_start.x) / L],
-                       [(x_goal.y - x_start.y) / L], [0.0]])
+                       [(x_goal.y - x_start.y) / L], 
+                       [(x_goal.z - x_start.z) / L]])
         e1 = np.array([[1.0], [0.0], [0.0]])
         # @ : matrix multiplication using the "@" operator in Numpy.
         M = a1 @ e1.T
@@ -338,12 +364,13 @@ class BITStar:
 
     @staticmethod
     def calc_dist(start, end):
-        return math.hypot(start.x - end.x, start.y - end.y)
+        return math.hypot(start.x - end.x, start.y - end.y, start.z - end.z)
 
     @staticmethod
     def calc_dist_and_angle(node_start, node_end):
         dx = node_end.x - node_start.x
         dy = node_end.y - node_start.y
+        dz = node_end.z - node_start.z
         return math.hypot(dx, dy), math.atan2(dy, dx)
 
     def animation(self, xCenter, cMax, cMin, theta):

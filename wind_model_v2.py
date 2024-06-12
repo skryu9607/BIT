@@ -21,117 +21,126 @@ Plot 정보
 ######################################################################################################
 
 # Perlin 노이즈를 사용하여 2D wind field map 생성
+class WINDS:
+    def __init__(self,seed,wind_speed):
+        self.ws = wind_speed
+        self.seed = seed
+    def ambient_winds(self,num_x,num_y,num_z,scale):
+        np.random.seed(self.seed)
 
-def generate_wind_field(num_x, num_y, num_z, scale, wind_speed, seed):
-    np.random.seed(seed)
+        u = np.zeros((num_x, num_y, num_z))
+        v = np.zeros((num_x, num_y, num_z))
+        
+        for i in range(num_x):
+            for j in range(num_y):
+                
+                noise1 = pnoise2(i * scale, j * scale, octaves=1, base=self.seed)
+                noise2 = pnoise2(i * scale, j * scale, octaves=1, base=self.seed + 10)
 
-    u = np.zeros((num_x, num_y, num_z))
-    v = np.zeros((num_x, num_y, num_z))
+                angle     = noise1 * 2 * np.pi
+                magnitude = noise2 * wind_speed + wind_speed
+
+                # 고도 (k) 에 따른 수평풍 변화는 없음
+                for k in range(num_z):    
+                    u[i, j, k] = magnitude * np.cos(angle)
+                    v[i, j, k] = magnitude * np.sin(angle)
+        
+        return u, v
+class Thermals:
+    '''
+    Inputs : Thermals의 위치 xc,yc, 
     
-    for i in range(num_x):
-        for j in range(num_y):
-            
-            noise1 = pnoise2(i * scale, j * scale, octaves=1, base=seed)
-            noise2 = pnoise2(i * scale, j * scale, octaves=1, base=seed + 10)
+    '''
+    def __init__(self,zi,w_star,xc,yc):
+        self.zi = zi
+        self.w_star = w_star
+        self.xc = xc
+        self.yc = yc
+    # Thermal Model Function
+    def lenschow_model_with_gedeon(self,z, map_x, map_y,map_z, num_x, num_y, num_z, u, v, u0=0, v0=0):
+        
+        # 상승기류 외곽 반지름 계산 [m]
+        d = self.zi * (0.16 * (z / self.zi)**(1/3)) * (1 - (0.25 * z)/zi)
 
-            angle     = noise1 * 2 * np.pi
-            magnitude = noise2 * wind_speed + wind_speed
+        # 평균 상승기류 속도 계산 (Lenschow 방정식) [m/s]
+        w_core = 1.0 * (z / zi)**(1/3) * (1 - 1.1 * z / zi) * w_star    
+        
+        # 그리드 간격
+        grid_x = 2 * map_x / num_x
+        grid_y = 2 * map_y / num_y
+        
+        # (d/2) 가 각 축에 대해 몇 개의 grid로 이루어지는지
+        num_grid_x = int((d/2) // grid_x)
+        num_grid_y = int((d/2) // grid_y)
+        
+        # thermal 중심 (xc,yc)이 맵 중심 (0,0)에 위치할 때, 각 축의 인덱스 상/하한 (thermal 내부에 존재하는 수평풍에 대해) 
+        idx_x_low = int(num_x / 2 - 1 - num_grid_x)
+        idx_x_upp = int(num_x / 2 - 1 + num_grid_x)
+        
+        idx_y_low = int(num_y / 2 - 1 - num_grid_y)
+        idx_y_upp = int(num_y / 2 - 1 + num_grid_y)
+        
 
-            # 고도 (k) 에 따른 수평풍 변화는 없음
-            for k in range(num_z):    
-                u[i, j, k] = magnitude * np.cos(angle)
-                v[i, j, k] = magnitude * np.sin(angle)
-    
-    return u, v
+        # Wx, Wy 는 해당 고도의 상승기류 내부 영역에 존재하는 수평풍 (u,v) 의 평균!!
+        Wx = 0
+        Wy = 0
+        
+        for idx_x in range(idx_x_low, idx_x_upp):
+            for idx_y in range(idx_y_low, idx_y_upp):
+                Wx = Wx + u[idx_x,idx_y,i]
+                Wy = Wy + v[idx_x,idx_y,i]
+        
+        Wx = Wx / ((2*num_grid_x + 1)*(2*num_grid_y + 1))
+        Wy = Wy / ((2*num_grid_x + 1)*(2*num_grid_y + 1))
 
+        # Bencatel 모델 적용: 상승기류 중심선 위치 계산 [m]
+        xt = xc + (Wx - u0) * z / w_core
+        yt = yc + (Wy - v0) * z / w_core
+
+        # 2D 좌표 배열 생성
+        x = np.linspace(-map_x, map_x, num_x)
+        y = np.linspace(-map_y, map_y, num_y)
+        X, Y = np.meshgrid(x, y)
+
+        # 상승기류 중심에서의 거리 계산 [m]
+        r = np.sqrt((X - xt)**2 + (Y - yt)**2)
+
+        # 상승기류 속도 [m/s]
+        w = w_core * np.exp(- (r/(d/2))**2) * (1 -(r/(d/2))**2)
+
+        return w
+
+    ######################################################################################################
+'''
+    # Thermal 파라미터 설정
+    zi = 1000           # 대류 혼합층 두께 [m]
+    w_star = 10         # 상승기류 속도 스케일 [m/s]
+    xc = 0              # 상승기류 중심의 x좌표
+    yc = 0              # 상승기류 중심의 y좌표
+
+    # 맵 설정 [m] : x, y 축 절반 길이 (맵 중심은 (0,0))
+    map_x = 5000
+    map_y = 4000
+
+    # Resolution 설정 (개수)
+    num_x = 300
+    num_y = 300
+    num_z = 100
+
+    # Horizontal Wind 파라미터 설정
+    w_hor = 1         # 수평풍 속도 스케일  [m/s]
+    scale = 0.1         # Perlin noise scale
+    # 3차원 quiver의 길이 파라미터 (map 크기에 따라 보기 좋게 수정해주는 역할)
+    arrow_size = 30
+    '''
 ######################################################################################################
-
-# Thermal Model Function
-
-def lenschow_model_with_gedeon(z, zi, w_star, map_x, map_y, num_x, num_y, u, v, xc=0, yc=0, u0=0, v0=0):
-    
-    # 상승기류 외곽 반지름 계산 [m]
-    d = zi * (0.16 * (z / zi)**(1/3)) * (1 - (0.25 * z)/zi)
-
-    # 평균 상승기류 속도 계산 (Lenschow 방정식) [m/s]
-    w_core = 1.0 * (z / zi)**(1/3) * (1 - 1.1 * z / zi) * w_star    
-    
-    # 그리드 간격
-    grid_x = 2 * map_x / num_x
-    grid_y = 2 * map_y / num_y
-
-    # (d/2) 가 각 축에 대해 몇 개의 grid로 이루어지는지
-    num_grid_x = int((d/2) // grid_x)
-    num_grid_y = int((d/2) // grid_y)
-    
-    # thermal 중심 (xc,yc)이 맵 중심 (0,0)에 위치할 때, 각 축의 인덱스 상/하한 (thermal 내부에 존재하는 수평풍에 대해) 
-    idx_x_low = int(num_x / 2 - 1 - num_grid_x)
-    idx_x_upp = int(num_x / 2 - 1 + num_grid_x)
-    idx_y_low = int(num_y / 2 - 1 - num_grid_y)
-    idx_y_upp = int(num_y / 2 - 1 + num_grid_y)
-
-    # Wx, Wy 는 해당 고도의 상승기류 내부 영역에 존재하는 수평풍 (u,v) 의 평균!!
-    Wx = 0
-    Wy = 0
-    
-    for idx_x in range(idx_x_low, idx_x_upp):
-        for idx_y in range(idx_y_low, idx_y_upp):
-            Wx = Wx + u[idx_x,idx_y,i]
-            Wy = Wy + v[idx_x,idx_y,i]
-    
-    Wx = Wx / ((2*num_grid_x + 1)*(2*num_grid_y + 1))
-    Wy = Wy / ((2*num_grid_x + 1)*(2*num_grid_y + 1))
-
-    # Bencatel 모델 적용: 상승기류 중심선 위치 계산 [m]
-    xt = xc + (Wx - u0) * z / w_core
-    yt = yc + (Wy - v0) * z / w_core
-
-    # 2D 좌표 배열 생성
-    x = np.linspace(-map_x, map_x, num_x)
-    y = np.linspace(-map_y, map_y, num_y)
-    X, Y = np.meshgrid(x, y)
-
-    # 상승기류 중심에서의 거리 계산 [m]
-    r = np.sqrt((X - xt)**2 + (Y - yt)**2)
-
-    # 상승기류 속도 [m/s]
-    w = w_core * np.exp(- (r/(d/2))**2) * (1 -(r/(d/2))**2)
-
-    return w
-
-######################################################################################################
-
-# Thermal 파라미터 설정
-zi = 1000           # 대류 혼합층 두께 [m]
-w_star = 10         # 상승기류 속도 스케일 [m/s]
-xc = 0              # 상승기류 중심의 x좌표
-yc = 0              # 상승기류 중심의 y좌표
-
-# 맵 설정 [m] : x, y 축 절반 길이 (맵 중심은 (0,0))
-map_x = 500
-map_y = 400
-
-# Resolution 설정 (개수)
-num_x = 30
-num_y = 30
-num_z = 5
-
-# Horizontal Wind 파라미터 설정
-w_hor = 1         # 수평풍 속도 스케일  [m/s]
-scale = 0.1         # Perlin noise scale
-seed = 1            # seed number
-
-# 3차원 quiver의 길이 파라미터 (map 크기에 따라 보기 좋게 수정해주는 역할)
-arrow_size = 30
-
-######################################################################################################
-
+thm1 = Thermals(10)
 altitudes = np.linspace(100, 0.9*zi, num_z)
 
 X, Y, Z = np.meshgrid(np.linspace(-map_x, map_x, num_x), np.linspace(-map_y, map_y, num_y), altitudes)
 
 # Horizontal Wind Vector Field 
-u, v = generate_wind_field(num_x, num_y, num_z, scale, w_hor, seed)
+u, v = thm1.ambient_winds(num_x, num_y, num_z, scale, w_hor)
 
 # Horizontal Wind Plot
 ax = plt.axes()
@@ -154,7 +163,7 @@ w = np.empty((num_x, num_y, num_z))
 
 for i, z in enumerate(altitudes):
     
-    w_vert = lenschow_model_with_gedeon(z, zi, w_star, map_x, map_y, num_x, num_y, u, v)
+    w_vert = thm1.lenschow_model_with_gedeon(z, zi, w_star, map_x, map_y, num_x, num_y, u, v)
     w[:,:,i] = w_vert
 
 # 3D Surface Plot in a specific altitude 
