@@ -510,8 +510,8 @@ class BITStar:
 
 def main():
     # TODO : 
-    x_start = (100, 100,0)  # Starting node
-    x_goal = (3000, 3000,3000)  # Goal node
+    x_start = (100, 100, 0)  # Starting node
+    x_goal = (3000, 3000, 3000)  # Goal node
     eta = 2 * 1
     iter_max = 200
     BITStar.init()
