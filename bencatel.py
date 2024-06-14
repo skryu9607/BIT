@@ -91,7 +91,7 @@ Wy = -0.5            # y 방향 수평 바람 속도 [m/s]
 r1_ratio = 0.80     # r1/r2 비율
 area = 300**2       # 해당 영역 넓이 (S)
 
-
+'''
 ##########################################################################################
 # 1. 특정 고도에서의 3D Surface Plot
 z = 800  # 고도 [m]
@@ -142,3 +142,4 @@ ax.set_zlabel("z (m)")
 plt.title("center position of thermal with altitudes")
 plt.grid(True)
 plt.show()
+'''

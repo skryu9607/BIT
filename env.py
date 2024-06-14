@@ -2,11 +2,10 @@ import numpy as np
 from scipy.spatial import distance
 from scipy.optimize import fsolve
 from sympy import sympify,solve
-from kinematics import Kinematics
 from mpl_toolkits import mplot3d
 import matplotlib.pyplot as plt
 #from skimage import measure
-from bencatel import Allen_Ben
+from bencatel import allen_model_with_bencatel
 
 class Node:
     def __init__(self,x,y,z):

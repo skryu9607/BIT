@@ -192,7 +192,7 @@ scale = 0.1         # Perlin noise scale
 arrow_size = 30
 
 ######################################################################################################
-
+'''
 # Wind speed [m/s]
 s = np.sqrt(u**2 + v**2 + w**2)
 
@@ -230,4 +230,4 @@ plt.ylabel('Y [m]')
 
 # Show the plot
 plt.show()
-
+'''
