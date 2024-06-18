@@ -6,13 +6,14 @@ from mpl_toolkits import mplot3d
 import matplotlib.pyplot as plt
 #from skimage import measure
 from bencatel import allen_model_with_bencatel
-
+from skimage import measure
 class Node:
-    def __init__(self,x,y,z):
+    def __init__(self,X):
         # x,y,z : State
-        self.x = x
-        self.y = y
-        self.z = z
+        self.x = X[0]
+        self.y = X[1]
+        self.z = X[2]
+        self.xyz = np.array([self.x,self.y,self.z])
         self.parent = None
 class Edge:
     def __init__(self,cr,fpa,duration):
@@ -60,8 +61,8 @@ class Obstacles:
     def map(self,pos):
         x,y,z = pos[0],pos[1],pos[2]
         base = np.array([(x - self.xyz0[0])/self.abc[0],y - self.xyz0[1]/self.abc[1],z - self.xyz0[2]/self.abc[2]])
-        exponenet = np.array(2 * self.shape[0], 2 * self.shape[1], 2 * self.shape[2])
-        self.F = np.sum(np.power(base,exponenet)) - 1
+        exponent = np.array([2 * self.shape[0], 2 * self.shape[1], 2 * self.shape[2]])
+        self.F = np.sum(np.power(base,exponent)) - 1
         return self.F
     
     def draw(self):
@@ -78,6 +79,7 @@ class Obstacles:
         y_max, y_min = self.xyz0[1] + self.abc[1], self.xyz0[1] - self.abc[1]
         z_max, z_min = self.xyz0[2] + self.abc[2], self.xyz0[2] - self.abc[2]
         gap = 5
+        
         interval = [x_min - gap, x_max + gap, y_min - gap, y_max + gap, z_min - gap, z_max + gap]
         
         # 3D 좌표 격자 생성 (20개)
@@ -108,7 +110,7 @@ class Obstacles:
         plt.show()
         
     def collide(self,pos):
-        if map(pos) < 0:
+        if self.map(pos) < 0:
             return True
         else:
             return False
@@ -119,7 +121,7 @@ class Thermals:
         self.location = location
     def map(self):
         if type == "chimmney":
-            ABen = Allen_Ben()
+            ABen = allen_model_with_bencatel()
             z = 800 # Our wanted estimation.
             X, Y, R, w_total = ABen.estimate(z)
         elif type == "bubble":

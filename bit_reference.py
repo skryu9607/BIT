@@ -87,6 +87,7 @@ class BITStar:
 
     def planning(self):
         theta, cMin, xCenter, C = self.init()
+        print(len(self.Tree.V))
         #if self.Tree.QV is None:
             #print()
         for k in range(2500):
@@ -108,8 +109,7 @@ class BITStar:
                 self.Prune(self.g_T[self.x_goal])
                # update : inserting. 
                # sample할 때의 sample ellipsoid의 크기가 달라진다. 
-                print(m)
-                print(cMin)
+                print("After pruning ",len(self.Tree.V))
                 self.X_sample.update(self.Sample(m, self.g_T[self.x_goal], cMin, xCenter, C))
                 self.Tree.V_old = {v for v in self.Tree.V} 
                 print(len(self.Tree.V))
