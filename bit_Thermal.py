@@ -342,7 +342,7 @@ class BITStar:
         cBest = self.g_T[self.x_goal]
         lambda_X = len([1 for v in self.Tree.V if self.f_estimated(v) <= cBest])
         print(lambda_X,q)
-        #radius = 
+        # TODO : Minjo Jung
         radius = 2 * self.eta * (1.5 * lambda_X / math.pi * math.log(q) / q) ** 0.5
         print("radius is ",radius) 
         
@@ -529,12 +529,12 @@ class BITStar:
         b = c_best / 2.0 * self.va
         c = c_best / 2.0 * self.va
         angle = math.pi / 2.0 - theta
-        cx = x_center[0]
+        cx = x_center[0] 
         cy = x_center[1]
         cz = x_center[2]
         t = np.arange(0, 2 * math.pi + 0.1, 0.2)
         phi = np.arange(0, 2 * math.pi + 0.1, 0.2)
-    
+
         x = [a * math.sin(iphi) * math.cos(it)  for it in t for iphi in phi]
         y = [b * math.sin(iphi) * math.sin(it)  for it in t for iphi in phi]
         z = [c * math.cos(iphi) for iphi in phi]
