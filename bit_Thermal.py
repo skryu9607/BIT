@@ -103,7 +103,7 @@ class BITStar:
         self.ax.scatter(self.x_start.x,self.x_start.y,self.x_start.z,marker = 'd' ,color = 'blue',s = 4)
         self.ax.scatter(self.x_goal.x,self.x_goal.y,self.x_goal.z,marker = 's' ,color = 'blue',s = 4)
         self.flagE = True
-        for k in range(250):
+        for k in range(250*4):
             # Batch Creation
             if not self.Tree.QE and not self.Tree.QV:
                 if self.flagE:
@@ -119,7 +119,7 @@ class BITStar:
                     plt.title("Wind Aware Batch Informed Trees")
                     plt.xlabel("X")
                     plt.ylabel("Y")
-                    plt.zlabel("Z")
+                    #plt.zlabel("Z")
                     plt.plot(path_x, path_y, path_z , linewidth=2, color='r',linestyle ='--')
                     plt.pause(0.01)
                 # g_T :  Current Tree 구조상에서의 cost-to
@@ -140,10 +140,11 @@ class BITStar:
                 print("The number of Tree.V is ",len(self.Tree.V))
                 self.Tree.QV = {v for v in self.Tree.V}
                 print("The number of Tree.QV is ", len(self.Tree.QV))
-                if k == 0: 
+                if self.flagE:
                     self.Tree.r = 0.5 * 1000 / 4 
                 else:
                     self.Tree.r = self.Radius(len(self.Tree.V) + len(self.X_sample))
+                    print("q is", len(self.Tree.V) + len(self.X_sample))
                 # Printing cBest <- Infinity
                 print("Expansion")
             # 확장이 benefit할 때까지.
@@ -485,6 +486,7 @@ class BITStar:
                 
             plt.draw()
             plt.pause(0.01)
+            
         except Exception as e:
             print(f"An error occurred: {e}")
             self.fig.savefig("error_figure.png")
@@ -541,14 +543,16 @@ class BITStar:
              math.sqrt(cMax ** 2 - cMin ** 2) / 2.0,
              math.sqrt(cMax ** 2 - cMin ** 2) / 2.0]
         '''
+        
         a = math.sqrt(c_best ** 2 - dist ** 2) / 2.0 * self.va
-        b = c_best / 2.0 * self.va
+        b = c_best / 4.0 * self.va
         c = math.sqrt(c_best ** 2 - dist ** 2) / 2.0 * self.va
         
         angle = math.pi / 2.0 - theta
         cx = x_center[0] 
         cy = x_center[1]
         cz = x_center[2]
+        
         t = np.arange(0, 2 * math.pi + 0.1, 0.2)
         phi = np.arange(0, 2 * math.pi + 0.1, 0.2)
 
