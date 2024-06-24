@@ -38,9 +38,9 @@ class BITStar:
         self.fig,self.ax = plt.subplots()
         '''
         self.delta = 0.5
-        self.x_range = (-5000, 5000)
-        self.y_range = (-5000, 5000)
-        self.z_range = (0, 5000)
+        self.x_range = (-1000, 5000)
+        self.y_range = (-1000, 5000)
+        self.z_range = (0, 4000)
         self.fig = plt.figure()
         self.ax = self.fig.add_subplot(111,projection = '3d')
         '''
@@ -98,6 +98,9 @@ class BITStar:
             #print()
         self.fig = plt.figure()
         self.ax = self.fig.add_subplot(111,projection = '3d')
+        self.ax.view_init(elev=20, azim=30)
+        self.ax.scatter(self.x_start.x,self.x_start.y,self.x_start.z,marker = 'd' ,color = 'blue',s = 4)
+        self.ax.scatter(self.x_goal.x,self.x_goal.y,self.x_goal.z,marker = 's' ,color = 'blue',s = 4)
         self.flagE = True
         for k in range(2500):
             # Batch Creation
@@ -186,7 +189,7 @@ class BITStar:
                 self.Tree.QE = set()
                 self.Tree.QV = set()
             #print("k is", k)
-            if k % 1 == 0:
+            if k % 5 == 0:
                 print("cMax is ", self.g_T[self.x_goal],"cMin is ",cMin)
                 print("The number of self.Tree.V is",len(self.Tree.V))
                 self.animation(xCenter, self.g_T[self.x_goal], cMin, theta)
@@ -295,10 +298,11 @@ class BITStar:
     def SampleEllipsoid(self, m, cMax, cMin, xCenter, C):
         if cMax < cMin:
             print("MAX C IS SMALLER THAN MIN C.")
-        r = [cMax / 2.0,
+        r_old = [cMax / 2.0,
              math.sqrt(cMax ** 2 - cMin ** 2) / 2.0,
              math.sqrt(cMax ** 2 - cMin ** 2) / 2.0]
-        L = np.diag(r)
+        #r = [r_component * self.va for r_component in r_old] 
+        L = np.diag(r_old)
 
         ind = 0
         delta = self.delta
@@ -465,14 +469,15 @@ class BITStar:
                 lambda event: [exit(0) if event.key == 'escape' else None])
 
             for v in self.X_sample:
-                self.ax.scatter(v.x, v.y, v.z, marker='.', color='lightgrey', s = 5)
+                self.ax.scatter(v.x, v.y, v.z, marker='.', color='lightgrey', s = 4)
 
             if cMax < np.inf:
                 # TODO : Changing 3D
                 self.draw_ellipse(self.ax, xCenter, cMax, cMin, theta)
 
             for v, w in self.Tree.E:
-                self.ax.plot([v.x, w.x], [v.y, w.y], [v.z, w.z],'-g',linewidth = 3)
+                self.ax.plot([v.x, w.x], [v.y, w.y], [v.z, w.z],'-g',linewidth = 2)
+                
             plt.draw()
             plt.pause(0.01)
         except Exception as e:
@@ -525,9 +530,16 @@ class BITStar:
         y = b sin(phi) * sin(tha)
         z = c cos(phi)
         '''
+        
+        '''
+        r_old = [cMax / 2.0,
+             math.sqrt(cMax ** 2 - cMin ** 2) / 2.0,
+             math.sqrt(cMax ** 2 - cMin ** 2) / 2.0]
+        '''
         a = math.sqrt(c_best ** 2 - dist ** 2) / 2.0 * self.va
         b = c_best / 2.0 * self.va
-        c = c_best / 2.0 * self.va
+        c = math.sqrt(c_best ** 2 - dist ** 2) / 2.0 * self.va
+        
         angle = math.pi / 2.0 - theta
         cx = x_center[0] 
         cy = x_center[1]
@@ -543,14 +555,19 @@ class BITStar:
         y = np.array(y)
         z = np.array(z)
         z = np.tile(z,len(t))
-        rot = Rot.from_euler('z', -angle).as_matrix()
+        rot = Rot.from_euler('x', -angle).as_matrix()
 
         fx = rot @ np.array([x, y, z])
         px = np.array(fx[0, :] + cx).flatten()
         py = np.array(fx[1, :] + cy).flatten()
         pz = np.array(fx[2, :] + cz).flatten()
-        ax.scatter(cx, cy, cz, marker='.', color='darkorange')
-        ax.plot(px, py, pz, linestyle='--', color='darkorange', linewidth=2)
+        print("The center is", cx, cy, cz)
+        print("The radius of each coordinate is ",a,b,c)
+        self.ax.scatter(cx, cy, cz, marker='.', color='blue', s = 6)
+        self.ax.plot(px, py, pz, linestyle='--', color='darkorange', linewidth=0.25)
+        self.ax.xlabel("X")
+        self.ax.ylabel("Y")
+        self.ax.zlabel("Z")
         '''
         # Apply rotation to each point
         points = np.vstack((x, y, z))
@@ -568,7 +585,7 @@ class BITStar:
 
 def main():
     # TODO : 
-    x_start = (100, 100,0)  # Starting node
+    x_start = (0, 0, 0.1)  # Starting node
     x_goal = (3000, 3000,3000)  # Goal node
     print("Start point is ", x_start)
     print("Goal point is ", x_goal)
