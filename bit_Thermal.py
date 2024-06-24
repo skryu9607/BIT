@@ -97,12 +97,13 @@ class BITStar:
         #if self.Tree.QV is None:
             #print()
         self.fig = plt.figure()
+
         self.ax = self.fig.add_subplot(111,projection = '3d')
         self.ax.view_init(elev=20, azim=30)
         self.ax.scatter(self.x_start.x,self.x_start.y,self.x_start.z,marker = 'd' ,color = 'blue',s = 4)
         self.ax.scatter(self.x_goal.x,self.x_goal.y,self.x_goal.z,marker = 's' ,color = 'blue',s = 4)
         self.flagE = True
-        for k in range(2500):
+        for k in range(250):
             # Batch Creation
             if not self.Tree.QE and not self.Tree.QV:
                 if self.flagE:
@@ -115,6 +116,10 @@ class BITStar:
                 if self.x_goal.parent is not None:
                     path_x, path_y, path_z = self.ExtractPath()
                     print("Solution Found")
+                    plt.title("Wind Aware Batch Informed Trees")
+                    plt.xlabel("X")
+                    plt.ylabel("Y")
+                    plt.zlabel("Z")
                     plt.plot(path_x, path_y, path_z , linewidth=2, color='r',linestyle ='--')
                     plt.pause(0.01)
                 # g_T :  Current Tree 구조상에서의 cost-to
@@ -565,9 +570,6 @@ class BITStar:
         print("The radius of each coordinate is ",a,b,c)
         self.ax.scatter(cx, cy, cz, marker='.', color='blue', s = 6)
         self.ax.plot(px, py, pz, linestyle='--', color='darkorange', linewidth=0.25)
-        self.ax.xlabel("X")
-        self.ax.ylabel("Y")
-        self.ax.zlabel("Z")
         '''
         # Apply rotation to each point
         points = np.vstack((x, y, z))
