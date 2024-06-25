@@ -415,6 +415,7 @@ class BITStar:
     @staticmethod
     def draw_ellipse(x_center, c_best, dist, theta):
         a = math.sqrt(c_best ** 2 - dist ** 2) / 2.0
+        print(a)
         b = c_best / 2.0
         angle = math.pi / 2.0 - theta
         cx = x_center[0]

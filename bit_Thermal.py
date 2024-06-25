@@ -80,26 +80,27 @@ class BITStar:
         self.g_T[self.x_start] = 0.0
         self.g_T[self.x_goal] = np.inf
         # At first glance, the batch size is just the distance between start point and the goal point. 
-        distMin, theta = self.calc_dist_and_angle(self.x_start, self.x_goal)
+        distMin, _ = self.calc_dist_and_angle(self.x_start, self.x_goal)
+        
         cMin = distMin/self.va
         # Center points
         xCenter = np.array([[(self.x_start.x + self.x_goal.x) / 2.0],
                             [(self.x_start.y + self.x_goal.y) / 2.0],
                             [(self.x_start.z + self.x_goal.z) / 2.0]])
         # Rotation matrix C.
-        C = self.RotationToWorldFrame(self.x_start, self.x_goal, cMin)
-        print(C)
-        return cMin,theta,xCenter,C
+        self.C = self.RotationToWorldFrame(self.x_start, self.x_goal, distMin)
+        print("Rotation Matrix is",self.C)
+        return cMin,xCenter
     
     def planning(self):
-        cMin,theta,xCenter, C = self.prepare()
+        cMin,xCenter = self.prepare()
         self.draw_things()
         #if self.Tree.QV is None:
             #print()
         self.fig = plt.figure()
 
         self.ax = self.fig.add_subplot(111,projection = '3d')
-        self.ax.view_init(elev=20, azim=30)
+        self.ax.view_init(elev=80, azim=30)
         self.ax.scatter(self.x_start.x,self.x_start.y,self.x_start.z,marker = 'd' ,color = 'blue',s = 4)
         self.ax.scatter(self.x_goal.x,self.x_goal.y,self.x_goal.z,marker = 's' ,color = 'blue',s = 4)
         self.flagE = True
@@ -107,11 +108,11 @@ class BITStar:
             # Batch Creation
             if not self.Tree.QE and not self.Tree.QV:
                 if self.flagE:
-                    m = 300 * 5
+                    m =  150 * 2
                     print("Sampling in FreeSpace \n")
                 else:
                     print("Sampling in Ellipsoid \n")
-                    m = 300 * 2
+                    m = 150 * 1
                 # Reach goal points
                 if self.x_goal.parent is not None:
                     path_x, path_y, path_z = self.ExtractPath()
@@ -134,7 +135,7 @@ class BITStar:
                 #cMax = self.g_T[self.x_goal] 
                 
                 # After Pruning, sampling.               
-                self.X_sample.update(self.Sample(m, self.g_T[self.x_goal], cMin, xCenter, C))
+                self.X_sample.update(self.Sample(m, self.g_T[self.x_goal], cMin, xCenter))
                 
                 self.Tree.V_old = {v for v in self.Tree.V} 
                 print("The number of Tree.V is ",len(self.Tree.V))
@@ -144,6 +145,7 @@ class BITStar:
                     self.Tree.r = 0.5 * 1000 / 4 
                 else:
                     self.Tree.r = self.Radius(len(self.Tree.V) + len(self.X_sample))
+                    print("Radius in Ellipsoid is", self.Tree.r)
                     print("q is", len(self.Tree.V) + len(self.X_sample))
                 # Printing cBest <- Infinity
                 print("Expansion")
@@ -154,7 +156,6 @@ class BITStar:
                 print("The number of QE ",len(self.Tree.QE))
                 self.ExpandVertex(self.BestInVertexQueue())
                 
-   
             # Best means "minimum". min(distance).
             vm, xm = self.BestInEdgeQueue()
             # BestInEdgeQueue : graph상에서의 진짜 g와 v,x사이의 직선거리, 
@@ -195,12 +196,11 @@ class BITStar:
                 self.Tree.QE = set()
                 self.Tree.QV = set()
             #print("k is", k)
-            if k % 5 == 0:
+            if k % 10 == 0:
                 print("cMax is ", self.g_T[self.x_goal],"cMin is ",cMin)
                 print("The number of self.Tree.V is",len(self.Tree.V))
-                self.animation(xCenter, self.g_T[self.x_goal], cMin, theta)
+                self.animation(xCenter, self.g_T[self.x_goal], cMin)
 
-        
         # Found the path
         path_x, path_y, path_z = self.ExtractPath()
         self.ax.plot(path_x, path_y, path_z, linewidth=2, color='r',linestyle ='--')
@@ -219,6 +219,7 @@ class BITStar:
         return path_x, path_y, path_z
 
     def Prune(self, cBest):
+        
         self.X_sample = {x for x in self.X_sample if self.f_estimated(x) < cBest}
         self.Tree.V = {v for v in self.Tree.V if self.f_estimated(v) <= cBest}
         self.Tree.E = {(v, w) for v, w in self.Tree.E
@@ -294,29 +295,49 @@ class BITStar:
         #return self.calc_dist(node, self.x_goal)
         return self.heuristics(node,self.x_goal)
     
-    def Sample(self, m, cMax, cMin, xCenter, C):
+    def Sample(self, m, cMax, cMin, xCenter):
         if cMax < np.inf:
             self.flagE = False
-            return self.SampleEllipsoid(m, cMax, cMin, xCenter, C)
+            return self.SampleEllipsoid(m, cMax, cMin, xCenter)
         else:
             return self.SampleFreeSpace(m)
 
-    def SampleEllipsoid(self, m, cMax, cMin, xCenter, C):
+    def SampleEllipsoid(self, m, cMax, cMin, xCenter):
         if cMax < cMin:
             print("MAX C IS SMALLER THAN MIN C.")
         r_old = [cMax / 2.0,
              math.sqrt(cMax ** 2 - cMin ** 2) / 2.0,
              math.sqrt(cMax ** 2 - cMin ** 2) / 2.0]
-        #r = [r_component * self.va for r_component in r_old] 
-        L = np.diag(r_old)
+        
+        r = [r_component * self.va for r_component in r_old] 
+        L = np.diag(r)
 
         ind = 0
         delta = self.delta
         Sample = set()
-
-        while ind < m:
+        while ind < m :
             xBall = self.SampleUnitNBall()
+            print("xBall", xBall.T)
+            print("L is ", L)
+            x_radius_change = L @ xBall.flatten()
+            x_rand = self.C @ x_radius_change + xCenter
+            node = Node([x_rand[(0, 0)], x_rand[(1, 0)], x_rand[(2,0)]])
+            in_obs = self.obs1.collide(node.xyz)
+            in_x_range = self.x_range[0] + delta <= node.x <= self.x_range[1] - delta
+            in_y_range = self.y_range[0] + delta <= node.y <= self.y_range[1] - delta
+            in_z_range = self.z_range[0] + delta <= node.z <= self.z_range[1] - delta
+            
+            if not in_obs and in_x_range and in_y_range and in_z_range:
+                Sample.add(node)
+                ind += 1
+                
+        '''
+        while ind < m:
+            
+            xBall = self.SampleUnitNBall()
+            
             x_rand = np.dot(np.dot(C, L), xBall) + xCenter
+            
             # node = Node(x_rand[(0, 0)], x_rand[(1, 0)])
             node = Node([x_rand[(0, 0)], x_rand[(1, 0)], x_rand[(2,0)]])
             in_obs = self.obs1.collide(node.xyz)
@@ -326,7 +347,7 @@ class BITStar:
             if not in_obs and in_x_range and in_y_range and in_z_range:
                 Sample.add(node)
                 ind += 1
-
+        '''
         return Sample
 
     def SampleFreeSpace(self, m):
@@ -423,7 +444,7 @@ class BITStar:
         while True:
             x, y, z = random.uniform(-1, 1), random.uniform(-1, 1), random.uniform(-1,1)
             if x ** 2 + y ** 2 + z ** 2 < 1:
-                return np.array([[x], [y], [z]])
+                return np.array([[x], [y], [z]]).T
             
     @staticmethod
     # estimation part should be changed. Not only distance but also energy cost.
@@ -437,8 +458,10 @@ class BITStar:
     @staticmethod
     def normalize(v):
         return v/np.linalg.norm(v) if np.linalg.norm(v) !=0 else v
+    
     @staticmethod
     def RotationToWorldFrame(x_start, x_goal, L):
+        # L means cMin.
         a1 = np.array([[(x_goal.x - x_start.x) / L],
                        [(x_goal.y - x_start.y) / L], 
                        [(x_goal.z - x_start.z) / L]])
@@ -450,6 +473,7 @@ class BITStar:
         U, _, V_T = np.linalg.svd(M, True, True)
         #C = U @ np.diag([1.0, 1.0, np.linalg.det(U) * np.linalg.det(V_T.T)]) @ V_T
         C = V_T @ U.T
+        
         return C
 
     @staticmethod
@@ -463,7 +487,7 @@ class BITStar:
         dz = node_end.z - node_start.z
         return math.hypot(dx, dy), math.atan2(dy, dx)
 
-    def animation(self, xCenter, cMax, cMin, theta):
+    def animation(self, xCenter, cMax, cMin):
         #self.fig = plt.figure()
         #self.ax = self.fig.add_subplot(111,projection='3d')
         # axis(축) 내용을 지우는 함수이다. 이 함수를 호출하면 현재 플롯의 모든 데이터, 레이블, 타이틀 등이 지워진다. 
@@ -479,7 +503,7 @@ class BITStar:
 
             if cMax < np.inf:
                 # TODO : Changing 3D
-                self.draw_ellipse(self.ax, xCenter, cMax, cMin, theta)
+                self.draw_ellipse(self.ax, xCenter, cMax, cMin)
 
             for v, w in self.Tree.E:
                 self.ax.plot([v.x, w.x], [v.y, w.y], [v.z, w.z],'-g',linewidth = 2)
@@ -530,7 +554,7 @@ class BITStar:
         plt.title(name)
         plt.axis("equal")
 
-    def draw_ellipse(self, ax, x_center, c_best, dist, theta):
+    def draw_ellipse(self, ax, x_center, c_best, dist):
         #TODO : Eplliipsoid 표현해줘.
         '''
         x = a sin(phi) * cos(tha)
@@ -543,12 +567,13 @@ class BITStar:
              math.sqrt(cMax ** 2 - cMin ** 2) / 2.0,
              math.sqrt(cMax ** 2 - cMin ** 2) / 2.0]
         '''
-        
-        a = math.sqrt(c_best ** 2 - dist ** 2) / 2.0 * self.va
-        b = c_best / 4.0 * self.va
+        # dist means cMin
+        # c_best means cMax : by the tree.
+        a = c_best / 2.0 * self.va
+        b = math.sqrt(c_best ** 2 - dist ** 2) / 2.0 * self.va
         c = math.sqrt(c_best ** 2 - dist ** 2) / 2.0 * self.va
         
-        angle = math.pi / 2.0 - theta
+        #angle = math.pi / 2.0 - theta
         cx = x_center[0] 
         cy = x_center[1]
         cz = x_center[2]
@@ -563,9 +588,10 @@ class BITStar:
         x = np.array(x)
         y = np.array(y)
         z = np.array(z)
+        
         z = np.tile(z,len(t))
-        rot = Rot.from_euler('x', -angle).as_matrix()
-
+        #rot = Rot.from_euler('x', -angle).as_matrix()
+        rot = self.C
         fx = rot @ np.array([x, y, z])
         px = np.array(fx[0, :] + cx).flatten()
         py = np.array(fx[1, :] + cy).flatten()
@@ -595,7 +621,7 @@ def main():
     x_goal = (3000, 3000,3000)  # Goal node
     print("Start point is ", x_start)
     print("Goal point is ", x_goal)
-    eta = 2 * 1 * 2000 # radius 조절 parameter
+    eta = 2 * 1 * 20# radius 조절 parameter
     iter_max = 200
     va = 20 
     bit = BITStar(x_start, x_goal, eta, iter_max,va)
