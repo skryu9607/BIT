@@ -305,12 +305,15 @@ class BITStar:
     def SampleEllipsoid(self, m, cMax, cMin, xCenter):
         if cMax < cMin:
             print("MAX C IS SMALLER THAN MIN C.")
+        
         r_old = [cMax / 2.0,
              math.sqrt(cMax ** 2 - cMin ** 2) / 2.0,
              math.sqrt(cMax ** 2 - cMin ** 2) / 2.0]
         
         r = [r_component * self.va for r_component in r_old] 
+        print("r is ", r,"\n")
         L = np.diag(r)
+        print("L is", L)
 
         ind = 0
         delta = self.delta
@@ -462,17 +465,18 @@ class BITStar:
     @staticmethod
     def RotationToWorldFrame(x_start, x_goal, L):
         # L means cMin.
-        a1 = np.array([[(x_goal.x - x_start.x) / L],
+        # 
+        dst = np.array([[(x_goal.x - x_start.x) / L],
                        [(x_goal.y - x_start.y) / L], 
                        [(x_goal.z - x_start.z) / L]])
-        e1 = np.array([[1.0], [0.0], [0.0]])
+        src = np.array([[1.0], [0.0], [0.0]])
         # @ : matrix multiplication using the "@" operator in Numpy.
-        M = a1 @ e1.T
+        M = np.outer(dst,src)
         # Eigen value, Eigen vector, 
         # To find the optimal rotation between two 3D vectors.
         U, _, V_T = np.linalg.svd(M, True, True)
         #C = U @ np.diag([1.0, 1.0, np.linalg.det(U) * np.linalg.det(V_T.T)]) @ V_T
-        C = V_T @ U.T
+        C = np.dot(U,V_T)
         
         return C
 
