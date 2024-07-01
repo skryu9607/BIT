@@ -100,9 +100,9 @@ class BITStar:
         self.fig = plt.figure()
 
         self.ax = self.fig.add_subplot(111,projection = '3d')
-        self.ax.view_init(elev=80, azim=30)
-        self.ax.scatter(self.x_start.x,self.x_start.y,self.x_start.z,marker = 'd' ,color = 'blue',s = 4)
-        self.ax.scatter(self.x_goal.x,self.x_goal.y,self.x_goal.z,marker = 's' ,color = 'blue',s = 4)
+        self.ax.view_init(elev=90, azim=30)
+        self.ax.scatter(self.x_start.x,self.x_start.y,self.x_start.z,marker = 'd' ,color = 'blue',s = 1)
+        self.ax.scatter(self.x_goal.x,self.x_goal.y,self.x_goal.z,marker = 's' ,color = 'blue',s = 1)
         self.flagE = True
         for k in range(250*4):
             # Batch Creation
@@ -400,7 +400,6 @@ class BITStar:
 
         if v not in self.Tree.V_old:
             V_near = {w for w in self.Tree.V if self.calc_dist(w, v) <= self.Tree.r}
-
             for w in V_near:
                 # TEST 2
                 if (v, w) not in self.Tree.E and \
@@ -582,8 +581,8 @@ class BITStar:
         cy = x_center[1]
         cz = x_center[2]
         
-        t = np.arange(0, 2 * math.pi + 0.1, 0.2)
-        phi = np.arange(0, 2 * math.pi + 0.1, 0.2)
+        t = np.arange(0, 2 * math.pi + 0.1, 0.1)
+        phi = np.arange(0, 2 * math.pi + 0.1, 0.1)
 
         x = [a * math.sin(iphi) * math.cos(it)  for it in t for iphi in phi]
         y = [b * math.sin(iphi) * math.sin(it)  for it in t for iphi in phi]
