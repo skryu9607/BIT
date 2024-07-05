@@ -63,7 +63,7 @@ class BITStar:
     '''    
     def draw_things(self):
         # Adding obstacles
-        xyz0 = [1000,1000,1000]
+        xyz0 = [-100,-100,100]
         abc = np.array([10,10,10])
         shape = np.array([1,1,2])
         self.obs1 = Obstacles(xyz0,abc,shape)
@@ -108,11 +108,11 @@ class BITStar:
             # Batch Creation
             if not self.Tree.QE and not self.Tree.QV:
                 if self.flagE:
-                    m =  150 * 2
+                    m =  150 * 3
                     print("Sampling in FreeSpace \n")
                 else:
                     print("Sampling in Ellipsoid \n")
-                    m = 150 * 1
+                    m = 150 * 2
                 # Reach goal points
                 if self.x_goal.parent is not None:
                     path_x, path_y, path_z = self.ExtractPath()

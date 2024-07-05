@@ -58,6 +58,7 @@ class Obstacles:
         self.abc = abc  
         self.shape = shape 
         self.F = None
+        
     def map(self,pos):
         x,y,z = pos[0],pos[1],pos[2]
         base = np.array([(x - self.xyz0[0])/self.abc[0],y - self.xyz0[1]/self.abc[1],z - self.xyz0[2]/self.abc[2]])

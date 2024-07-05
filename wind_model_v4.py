@@ -247,9 +247,9 @@ for i, z in enumerate(altitudes):
 
 t.toc()
 
-np.save('C:/Users/LiCS/Documents/MJ/KAIST/Paper/2025 ACC/Wind Energy/Code/Thermal/u', u)
-np.save('C:/Users/LiCS/Documents/MJ/KAIST/Paper/2025 ACC/Wind Energy/Code/Thermal/v', v)
-np.save('C:/Users/LiCS/Documents/MJ/KAIST/Paper/2025 ACC/Wind Energy/Code/Thermal/w', w)
+np.save('C:/Users/seung/WindData/u',u)
+np.save('C:/Users/seung/WindData/v',v)
+np.save('C:/Users/seung/WindData/w',w)
         
 # # 3D Surface Plot in a specific altitude 
 # fig = plt.figure()
