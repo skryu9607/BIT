@@ -63,8 +63,8 @@ class BITStar:
     '''    
     def draw_things(self):
         # Adding obstacles
-        xyz0 = [-100,-100,100]
-        abc = np.array([10,10,10])
+        xyz0 = [1000,1000,1000]
+        abc = np.array([100,100,100])
         shape = np.array([1,1,2])
         self.obs1 = Obstacles(xyz0,abc,shape)
         self.obs1.draw()
@@ -100,7 +100,7 @@ class BITStar:
         self.fig = plt.figure()
 
         self.ax = self.fig.add_subplot(111,projection = '3d')
-        self.ax.view_init(elev=90, azim=30)
+        self.ax.view_init(elev=60, azim=30)
         self.ax.scatter(self.x_start.x,self.x_start.y,self.x_start.z,marker = 'd' ,color = 'blue',s = 1)
         self.ax.scatter(self.x_goal.x,self.x_goal.y,self.x_goal.z,marker = 's' ,color = 'blue',s = 1)
         self.flagE = True
@@ -108,11 +108,11 @@ class BITStar:
             # Batch Creation
             if not self.Tree.QE and not self.Tree.QV:
                 if self.flagE:
-                    m =  150 * 3
+                    m =  150 * 4
                     print("Sampling in FreeSpace \n")
                 else:
                     print("Sampling in Ellipsoid \n")
-                    m = 150 * 2
+                    m = 150 * 1
                 # Reach goal points
                 if self.x_goal.parent is not None:
                     path_x, path_y, path_z = self.ExtractPath()
@@ -138,11 +138,14 @@ class BITStar:
                 self.X_sample.update(self.Sample(m, self.g_T[self.x_goal], cMin, xCenter))
                 
                 self.Tree.V_old = {v for v in self.Tree.V} 
+                
                 print("The number of Tree.V is ",len(self.Tree.V))
                 self.Tree.QV = {v for v in self.Tree.V}
+                
                 print("The number of Tree.QV is ", len(self.Tree.QV))
+                
                 if self.flagE:
-                    self.Tree.r = 0.5 * 1000 / 4 
+                    self.Tree.r = 50
                 else:
                     self.Tree.r = self.Radius(len(self.Tree.V) + len(self.X_sample))
                     print("Radius in Ellipsoid is", self.Tree.r)
@@ -155,7 +158,7 @@ class BITStar:
                 print("The number of QV ",len(self.Tree.QV))
                 print("The number of QE ",len(self.Tree.QE))
                 self.ExpandVertex(self.BestInVertexQueue())
-                
+            
             # Best means "minimum". min(distance).
             vm, xm = self.BestInEdgeQueue()
             # BestInEdgeQueue : graph상에서의 진짜 g와 v,x사이의 직선거리, 
@@ -176,6 +179,7 @@ class BITStar:
                             for edge in edge_delete:
                                 self.Tree.E.remove(edge)
                         else:
+                            
                             self.X_sample.remove(xm)
                             self.Tree.V.add(xm)
                             self.Tree.QV.add(xm)
@@ -253,7 +257,8 @@ class BITStar:
         N = 3
         Cost = 0
         PNTs = self.interpolate_points(start,end,N)
-        l0 = self.normalize(end.xyz-start.xyz)
+        l0 = self.normalize(end.xyz - start.xyz)
+        #l0 = self.normalize(self.x_goal.xyz -self.x_start.xyz)
         # 모든 점들이 false라면,
         
         for i in range(N):
@@ -262,7 +267,7 @@ class BITStar:
                 return np.inf
             Velocity_Tan = self.getting_tangential(PNTs[i,:],l0)
             Cost += L0/N / (Velocity_Tan)
-            
+        print("Cost is ",Cost)
         return Cost
     
     def heuristics(self,start,end, n = 3):
@@ -278,6 +283,8 @@ class BITStar:
         if tangential_values:
             worst_case = np.min(tangential_values)
             #print("Worst tangential value is ",worst_case)
+            #print("The distance btwn start and end is" ,self.calc_dist(start,end))
+            #print(self.calc_dist(start,end) / worst_case)
             return self.calc_dist(start,end) / worst_case
         else:
             return float('inf')
@@ -297,7 +304,6 @@ class BITStar:
     
     def Sample(self, m, cMax, cMin, xCenter):
         if cMax < np.inf:
-            self.flagE = False
             return self.SampleEllipsoid(m, cMax, cMin, xCenter)
         else:
             return self.SampleFreeSpace(m)
@@ -311,19 +317,25 @@ class BITStar:
              math.sqrt(cMax ** 2 - cMin ** 2) / 2.0]
         
         r = [r_component * self.va for r_component in r_old] 
-        print("r is ", r,"\n")
+        #print("r is ", r,"\n")
         L = np.diag(r)
-        print("L is", L)
+        #print("L is", L)
 
         ind = 0
         delta = self.delta
         Sample = set()
         while ind < m :
             xBall = self.SampleUnitNBall()
-            print("xBall", xBall.T)
-            print("L is ", L)
+            #print("xBall", xBall.T)
+            #print("L is ", L)
+            #print(self.C)
             x_radius_change = L @ xBall.flatten()
-            x_rand = self.C @ x_radius_change + xCenter
+            #print("x_radius_change is", x_radius_change)
+            x_rand_before_center = self.C @ x_radius_change 
+            x_rand_before_center = x_rand_before_center.T
+            #print(xCenter)
+            x_rand = x_rand_before_center.reshape((3,1)) + xCenter.flatten()
+            #print("x_rand is",x_rand,"x_rand before adding center is", x_rand_before_center.reshape((3,1)))
             node = Node([x_rand[(0, 0)], x_rand[(1, 0)], x_rand[(2,0)]])
             in_obs = self.obs1.collide(node.xyz)
             in_x_range = self.x_range[0] + delta <= node.x <= self.x_range[1] - delta
@@ -375,8 +387,7 @@ class BITStar:
     def Radius(self, q):
         cBest = self.g_T[self.x_goal]
         lambda_X = len([1 for v in self.Tree.V if self.f_estimated(v) <= cBest])
-        print(lambda_X,q)
-        # TODO : Minjo Jung
+        print("Lambda_X and q are ",lambda_X,q)
         radius = 2 * self.eta * (1.5 * lambda_X / math.pi * math.log(q) / q) ** 0.5
         print("radius is ",radius) 
         
@@ -394,6 +405,7 @@ class BITStar:
             # estimated 는 어떻게 얻는걸까?
             # self.start로부터의 직선거리. <- g // self.goal까지의 거리 : h_estimated . 
             # TEST 1
+            #print("the current node value is ",self.g_estimated(v) + self.calc_dist(v, x)/self.va + self.h_estimated(x),"the bar is ", self.g_T[self.x_goal])
             if self.g_estimated(v) + self.calc_dist(v, x)/self.va + self.h_estimated(x) < self.g_T[self.x_goal]:
                 self.g_T[x] = np.inf
                 self.Tree.QE.add((v, x))
@@ -455,7 +467,7 @@ class BITStar:
         x_values = np.linspace(point1.x, point2.x, num_points)
         y_values = np.linspace(point1.y, point2.y, num_points)
         z_values = np.linspace(point1.z, point2.z, num_points)
-        return np.vstack((x_values, y_values,z_values)).T            
+        return np.vstack((x_values, y_values,z_values)).T   
             
     @staticmethod
     def normalize(v):
@@ -502,8 +514,10 @@ class BITStar:
                 lambda event: [exit(0) if event.key == 'escape' else None])
 
             for v in self.X_sample:
-                self.ax.scatter(v.x, v.y, v.z, marker='.', color='lightgrey', s = 4)
-
+                if not self.flagE:
+                    self.ax.scatter(v.x, v.y, v.z, marker='.', color='black', s = 4)
+                if self.flagE:
+                    self.ax.scatter(v.x, v.y, v.z, marker='.', color='lightgrey', s = 1)
             if cMax < np.inf:
                 # TODO : Changing 3D
                 self.draw_ellipse(self.ax, xCenter, cMax, cMin)
