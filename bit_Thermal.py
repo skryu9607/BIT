@@ -411,7 +411,8 @@ class BITStar:
                 self.Tree.QE.add((v, x))
 
         if v not in self.Tree.V_old:
-            V_near = {w for w in self.Tree.V if self.calc_dist(w, v) <= self.Tree.r}
+            # self.Tree.r 은 Time cost!!!! - July 6th.
+            V_near = {w for w in self.Tree.V if self.calc_dist(w, v)/self.va <= self.Tree.r}
             for w in V_near:
                 # TEST 2
                 if (v, w) not in self.Tree.E and \
@@ -515,6 +516,7 @@ class BITStar:
 
             for v in self.X_sample:
                 if not self.flagE:
+                    print("Ellipsoid")
                     self.ax.scatter(v.x, v.y, v.z, marker='.', color='black', s = 4)
                 if self.flagE:
                     self.ax.scatter(v.x, v.y, v.z, marker='.', color='lightgrey', s = 1)
@@ -613,8 +615,8 @@ class BITStar:
         px = np.array(fx[0, :] + cx).flatten()
         py = np.array(fx[1, :] + cy).flatten()
         pz = np.array(fx[2, :] + cz).flatten()
-        print("The center is", cx, cy, cz)
-        print("The radius of each coordinate is ",a,b,c)
+        #print("The center is", cx, cy, cz)
+        #print("The radius of each coordinate is ",a,b,c)
         self.ax.scatter(cx, cy, cz, marker='.', color='blue', s = 6)
         self.ax.plot(px, py, pz, linestyle='--', color='darkorange', linewidth=0.25)
         '''
@@ -638,8 +640,8 @@ def main():
     x_goal = (3000, 3000,3000)  # Goal node
     print("Start point is ", x_start)
     print("Goal point is ", x_goal)
-    eta = 2 * 1 * 20# radius 조절 parameter
-    iter_max = 200
+    eta = 2 * 1 * 20 # radius 조절 parameter
+    iter_max = 200 
     va = 20 
     bit = BITStar(x_start, x_goal, eta, iter_max,va)
     #bit.draw_things()
@@ -650,4 +652,17 @@ def main():
     
 if __name__== '__main__':
     main()
-    
+
+
+'''
+
+1) Wind 넣어서 확인해보기 
+2) plot 잘 해보기. (가시성 높이는), Transparent하게?
+    1. path 하나 찾으면, 이전 것들 없애기. Like the reference.
+    2. [px,py,pz] : 덜 촘촘하게? : 투명도가 조절된다면..?
+    3. Obstacle 투명하게 넣기.
+    4. Wind는 같은 camera view에서
+    5. figsize 키우기
+    6. 앞에 뜨는 거 좀 지우기.
+
+'''
