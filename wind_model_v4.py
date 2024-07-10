@@ -11,7 +11,7 @@ Code 정보
 1. 수평풍 : Perlin Noise 를 이용 (wind_model_v1 과의 차이점)
 2. 수직풍 : leaning 을 고려한 Allen 모델 (논문 수식이 아닌 matlab 기준) (wind_model_v2 와의 차이점)
 3. 수직풍을 고려할 때, 수평풍 Wx, Wy를 수정 (사전 정의해야 하는 파라미터 -> 상승기류 내부 영역에 존재하는 수평풍 u,v 의 평균) (wind_model_v2 와의 차이점)
-4. Resolution : x-y-z 모두 0.1로 통일 & Plot 제거 (wind_model_v3 와의 차이점)
+4. Resolution : x-y-z 모두 같은 값로 통일 & Plot 제거 (wind_model_v3 와의 차이점)
 """
 
 """
@@ -25,13 +25,11 @@ Plot 정보
 
 # Perlin 노이즈를 사용하여 2D wind field map 생성
 
-def generate_wind_field(num_x, num_y, num_z, scale, wind_speed, seed):
+def generate_wind_field(num_x, num_y, scale, wind_speed, seed):
     np.random.seed(seed)
 
-    # u = np.zeros((num_x, num_y), dtype=np.float64)
-    # v = np.zeros((num_x, num_y), dtype=np.float64)
-    u = np.zeros((num_x, num_y, num_z), dtype=np.float64)
-    v = np.zeros((num_x, num_y, num_z), dtype=np.float64)
+    u = np.zeros((num_x, num_y))
+    v = np.zeros((num_x, num_y))
     
     for i in range(num_x):
         for j in range(num_y):
@@ -42,10 +40,10 @@ def generate_wind_field(num_x, num_y, num_z, scale, wind_speed, seed):
             angle     = noise1 * 2 * np.pi
             magnitude = noise2 * wind_speed + wind_speed
 
-            # # 고도 (k) 에 따른 수평풍 변화는 없음
+            # 고도 (k) 에 따른 수평풍 변화는 없음
             for k in range(num_z):    
-                u[i, j, k] = magnitude * np.cos(angle)
-                v[i, j, k] = magnitude * np.sin(angle)
+                u[i, j] = magnitude * np.cos(angle)
+                v[i, j] = magnitude * np.sin(angle)
     
     return u, v
 
@@ -53,7 +51,16 @@ def generate_wind_field(num_x, num_y, num_z, scale, wind_speed, seed):
 
 # Thermal Model Function
 
-def allen_model(z, zi, w_star, map_x, map_y, num_x, num_y, u, v, xc=0, yc=0, u0=0, v0=0):
+def allen_model(z, zi, w_star, x_min, x_max, y_min, y_max, u, v, xc, yc, xt_old, yt_old, u0=0, v0=0):
+    
+    # 맵 데이터 파라미터
+    x_len = x_max - x_min
+    y_len = y_max - y_min
+
+    # Resolution 설정 (개수)
+    resolution = 10
+    num_x = int((x_len / resolution) + 1)
+    num_y = int((y_len / resolution) + 1)
     
     # 상승기류 외곽 반지름 계산 [m]
     r2 = max(10, 0.102 * (z / zi)**(1/3) * (1 - 0.25 * z / zi) * zi )
@@ -73,41 +80,37 @@ def allen_model(z, zi, w_star, map_x, map_y, num_x, num_y, u, v, xc=0, yc=0, u0=
     # 상승기류 최대 속도 계산 (wc)
     w_peak = 3 * w_avg * ((r2**2)*(r2-r1)) / (r2**3 - r1**3)
 
-    # 그리드 간격
-    grid_x = 2 * map_x / num_x
-    grid_y = 2 * map_y / num_y
-
     # (d/2) 가 각 축에 대해 몇 개의 grid로 이루어지는지
-    num_grid_x = int((r2) // grid_x)
-    num_grid_y = int((r2) // grid_y)
+    num_grid = int((r2) // resolution)
     
-    # thermal 중심 (xc,yc)이 맵 중심 (0,0)에 위치할 때, 각 축의 인덱스 상/하한 (thermal 내부에 존재하는 수평풍에 대해) 
-    idx_x_low = int(num_x / 2 - 1 - num_grid_x)
-    idx_x_upp = int(num_x / 2 - 1 + num_grid_x)
-    idx_y_low = int(num_y / 2 - 1 - num_grid_y)
-    idx_y_upp = int(num_y / 2 - 1 + num_grid_y)
+    # xt_old, yt_old 의 인덱스
+    xt_old_idx = int((xt_old - x_min)/resolution)
+    yt_old_idx = int((yt_old - y_min)/resolution)
+
+    # 2 * r2 의 정사각형 (중심은 xt_old, yt_old)에 해당하는 영역에 대한 인덱스 상/하한 -> u, v에 대한 인덱싱을 위해
+    idx_x_low = int(xt_old_idx - num_grid)
+    idx_x_upp = int(xt_old_idx - num_grid)
+    idx_y_low = int(yt_old_idx - num_grid)
+    idx_y_upp = int(yt_old_idx - num_grid)
 
     # Wx, Wy 는 해당 고도의 상승기류 내부 영역에 존재하는 수평풍 (u,v) 의 평균!!
-    Wx = 0
-    Wy = 0
-    
+    Wx = 0  # 초기화
+    Wy = 0  # 초기화
     for idx_x in range(idx_x_low, idx_x_upp):
         for idx_y in range(idx_y_low, idx_y_upp):
-            # Wx = Wx + u[idx_x,idx_y]
-            # Wy = Wy + v[idx_x,idx_y]
-            Wx = Wx + u[idx_x,idx_y,0]
-            Wy = Wy + v[idx_x,idx_y,0]
+            Wx = Wx + u[idx_x,idx_y]
+            Wy = Wy + v[idx_x,idx_y]
     
-    Wx = Wx / ((2*num_grid_x + 1)*(2*num_grid_y + 1))
-    Wy = Wy / ((2*num_grid_x + 1)*(2*num_grid_y + 1))
+    Wx = Wx / ((2*num_grid + 1)*(2*num_grid + 1))
+    Wy = Wy / ((2*num_grid + 1)*(2*num_grid + 1))
 
-    # Bencatel 모델 적용: 상승기류 중심선 위치 계산 [m]
+    # Bencatel 모델 적용: 상승기류 중심선 위치 (xt,yt) 계산 [m]   * (xc,yc) : 지표면에서의 중심 좌표, (u0, v0) : thermal의 수평 이동 속도
     xt = xc + (Wx - u0) * z / w_avg
     yt = yc + (Wy - v0) * z / w_avg
 
     # 2D 좌표 배열 생성
-    x = np.linspace(-map_x, map_x, num_x).astype(np.float64)
-    y = np.linspace(-map_y, map_y, num_y).astype(np.float64)
+    x = np.linspace(x_min, x_max, num_x)
+    y = np.linspace(y_min, y_max, num_y)
     X, Y = np.meshgrid(x, y)
 
     # 상승기류 중심에서의 거리 계산 [m0] (tuple)
@@ -139,9 +142,9 @@ def allen_model(z, zi, w_star, map_x, map_y, num_x, num_y, u, v, xc=0, yc=0, u0=
     else:
         ws = 0
 
-    w_l = np.empty((num_x, num_y), dtype=np.float64)
-    w_d = np.empty((num_x, num_y), dtype=np.float64)
-    swd = np.empty((num_x, num_y), dtype=np.float64)
+    w_l = np.empty((num_x, num_y))
+    w_d = np.empty((num_x, num_y))
+    swd = np.empty((num_x, num_y))
     for ii in range(num_x):
         for jj in range(num_y):
             if r[ii,jj]>r1 and (r[ii,jj]/r2)<2:
@@ -160,12 +163,12 @@ def allen_model(z, zi, w_star, map_x, map_y, num_x, num_y, u, v, xc=0, yc=0, u0=
     w = w_peak * (ws + w_d)         # 논문 수식과 다름
     
     # 해당 영역(S) 에서의 thermal 최대 개수 
-    S = (2*map_x)*(2*map_y)
+    S = (x_len)*(y_len)
     N = math.floor(0.6*S/(zi*r2))
     
     # 환경 하강 속도 (environment sink velocity) (논문 수식과 다름)
-    w_e = np.empty((num_x, num_y), dtype=np.float64)
-    w_total = np.empty((num_x, num_y), dtype=np.float64)
+    w_e = np.empty((num_x, num_y))
+    w_total = np.empty((num_x, num_y))
     for ii in range(num_x):
         for jj in range(num_y):
             w_e[ii,jj] = -(w_avg*N*np.pi*r2**2*(1-swd[ii,jj]))/(S-N*np.pi*r2**2)
@@ -177,31 +180,37 @@ def allen_model(z, zi, w_star, map_x, map_y, num_x, num_y, u, v, xc=0, yc=0, u0=
             else:
                 w_total[ii,jj] = w[ii,jj]
 
-    return w
+    return w, xt, yt
 
 ######################################################################################################
 
 t = TicToc()
 t.tic()
+
 # Thermal 파라미터 설정
 zi = 4000           # 대류 혼합층 두께 [m]
 w_star = 10         # 상승기류 속도 스케일 [m/s]
-xc = 0              # 상승기류 중심의 x좌표
-yc = 0              # 상승기류 중심의 y좌표
+xc = 3000            # 상승기류 중심의 x좌표 (지표면) (맵 중앙)
+yc = 3000            # 상승기류 중심의 y좌표 (지표면) (맵 중앙)
 
 # 맵 설정 [m] : x, y 축 절반 길이 (맵 중심은 (0,0))
-map_x = 3000
-map_y = 3000
+x_min = -1000
+x_max = 5000
+y_min = -1000
+y_max = 5000
+
+x_len = x_max - x_min
+y_len = y_max - y_min
 
 # Resolution 설정 (개수)
 resolution = 10
-num_x = int((2 * map_x / resolution) + 1)
-num_y = int((2 * map_x / resolution) + 1)
+num_x = int((x_len / resolution) + 1)
+num_y = int((y_len / resolution) + 1)
 num_z = int(((0.9 * zi - resolution) / resolution) + 1)
-altitudes = np.linspace(resolution, 0.9*zi, num_z).astype(np.float64)
+altitudes = np.linspace(resolution, 0.9*zi, num_z)
 
 # Horizontal Wind 파라미터 설정
-w_hor = 1         # 수평풍 속도 스케일  [m/s]
+w_hor = 1           # 수평풍 속도 스케일  [m/s]
 scale = 0.1         # Perlin noise scale
 seed = 1            # seed number
 
@@ -212,12 +221,10 @@ seed = 1            # seed number
 # Plot 1
 ######################################################################################################
 
-X, Y, Z = np.meshgrid(np.linspace(-map_x, map_x, num_x).astype(np.float64), np.linspace(-map_y, map_y, num_y).astype(np.float64), altitudes)
+X, Y, Z = np.meshgrid(np.linspace(x_min, x_max, num_x), np.linspace(y_min, y_max, num_y), altitudes)
 
 # Horizontal Wind Vector Field 
-u, v = generate_wind_field(num_x, num_y, num_z, scale, w_hor, seed)
-print(type(u[0,0]))
-print(u.itemsize)
+u, v = generate_wind_field(num_x, num_y, scale, w_hor, seed)
 
 # # Horizontal Wind Plot
 # ax = plt.axes()
@@ -238,18 +245,25 @@ print(u.itemsize)
 ######################################################################################################
 
 # Vertical Wind (Thermal Updraft)
-w = np.empty((num_x, num_y, num_z), dtype=np.float64)
+w = np.empty((num_x, num_y, num_z))
+
+
+xt_old = xc
+yt_old = yc
 
 for i, z in enumerate(altitudes):
     
-    w_vert = allen_model(z, zi, w_star, map_x, map_y, num_x, num_y, u, v)
+    w_vert, xt, yt = allen_model(z, zi, w_star, x_min, x_max, y_min, y_max, u, v, xc, yc, xt_old, yt_old)
     w[:,:,i] = w_vert
 
-t.toc()
+    xt_old = xt
+    yt_old = yt
+    
 
-np.save('C:/Users/seung/WindData/u',u)
-np.save('C:/Users/seung/WindData/v',v)
-np.save('C:/Users/seung/WindData/w',w)
+t.toc()
+np.save('/Users/minmorning/Documents/Ignatius/ACC_2025/wind/u', u)
+np.save('/Users/minmorning/Documents/Ignatius/ACC_2025/wind/v', v)
+np.save('/Users/minmorning/Documents/Ignatius/ACC_2025/wind/w', w)
         
 # # 3D Surface Plot in a specific altitude 
 # fig = plt.figure()
