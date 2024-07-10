@@ -39,7 +39,7 @@ def wind_catcher(x,y,z,u,v,w):
 
     return wind
 
-'''LOAD wind map data : 파일 주소는 알맞게 변경'''
+'''Windows '''
 u = np.load('C:/Users/seung/WindData/u.npy')
 v = np.load('C:/Users/seung/WindData/v.npy')
 w = np.load('C:/Users/seung/WindData/w.npy')
