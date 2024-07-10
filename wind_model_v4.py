@@ -51,14 +51,13 @@ def generate_wind_field(num_x, num_y, scale, wind_speed, seed):
 
 # Thermal Model Function
 
-def allen_model(z, zi, w_star, x_min, x_max, y_min, y_max, u, v, xc, yc, xt_old, yt_old, u0=0, v0=0):
+def allen_model(resolution,z, zi, w_star, x_min, x_max, y_min, y_max, u, v, xc, yc, xt_old, yt_old, u0=0, v0=0):
     
     # 맵 데이터 파라미터
     x_len = x_max - x_min
     y_len = y_max - y_min
 
     # Resolution 설정 (개수)
-    resolution = 10
     num_x = int((x_len / resolution) + 1)
     num_y = int((y_len / resolution) + 1)
     
@@ -190,8 +189,8 @@ t.tic()
 # Thermal 파라미터 설정
 zi = 4000           # 대류 혼합층 두께 [m]
 w_star = 10         # 상승기류 속도 스케일 [m/s]
-xc = 3000            # 상승기류 중심의 x좌표 (지표면) (맵 중앙)
-yc = 3000            # 상승기류 중심의 y좌표 (지표면) (맵 중앙)
+xc = 1800            # 상승기류 중심의 x좌표 (지표면) (맵 중앙)
+yc = 2400            # 상승기류 중심의 y좌표 (지표면) (맵 중앙)
 
 # 맵 설정 [m] : x, y 축 절반 길이 (맵 중심은 (0,0))
 x_min = -1000
@@ -203,7 +202,16 @@ x_len = x_max - x_min
 y_len = y_max - y_min
 
 # Resolution 설정 (개수)
-resolution = 10
+ResolutionType = 'coarse'
+# Coarse 
+if ResolutionType == 'coarse':
+    resolution = 20
+elif ResolutionType == 'normal':
+    resolution = 10
+elif ResolutionType == 'high':
+    resolution = 5
+elif ResolutionType == 'highest':
+    resolution = 1
 num_x = int((x_len / resolution) + 1)
 num_y = int((y_len / resolution) + 1)
 num_z = int(((0.9 * zi - resolution) / resolution) + 1)
@@ -253,17 +261,21 @@ yt_old = yc
 
 for i, z in enumerate(altitudes):
     
-    w_vert, xt, yt = allen_model(z, zi, w_star, x_min, x_max, y_min, y_max, u, v, xc, yc, xt_old, yt_old)
-    w[:,:,i] = w_vert
+    w_vert, xt, yt = allen_model(resolution,z, zi, w_star, x_min, x_max, y_min, y_max, u, v, xc, yc, xt_old, yt_old)
+    if w_vert.shape == (num_x, num_y):
+        w[:,:,i] = w_vert
+    else:
+        raise ValueError(f"Shape mismatch: w_vert.shape = {w_vert.shape}, expected = {(num_x, num_y)}")
 
     xt_old = xt
     yt_old = yt
-    
+    if i%50 ==0:
+        print("Writing... please wait")
 
 t.toc()
-np.save('/Users/minmorning/Documents/Ignatius/ACC_2025/wind/u', u)
-np.save('/Users/minmorning/Documents/Ignatius/ACC_2025/wind/v', v)
-np.save('/Users/minmorning/Documents/Ignatius/ACC_2025/wind/w', w)
+np.save(f'C:/Users/seung/WindData/u_{ResolutionType}', u)
+np.save(f'C:/Users/seung/WindData/v_{ResolutionType}', v)
+np.save(f'C:/Users/seung/WindData/w_{ResolutionType}', w)
         
 # # 3D Surface Plot in a specific altitude 
 # fig = plt.figure()

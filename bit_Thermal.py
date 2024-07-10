@@ -14,7 +14,7 @@ from scipy.spatial.transform import Rotation as Rot
 import cProfile
 import pstats
 import io
-import wind_catcher
+from winds import wind_catcher
 #sys.path.append(os.path.dirname(os.path.abspath(__file__)) +
 #                "/../../Sampling_based_Planning/")
 
@@ -24,7 +24,7 @@ import utils
 import plotting
 from wind_model_v2 import WINDS, Thermals
 class BITStar:
-    def __init__(self, x_start, x_goal, eta, iter_max,va):
+    def __init__(self, x_start, x_goal, eta, iter_max,va,u,v,w):
         self.x_start = Node(x_start)
         self.x_goal = Node(x_goal)
         self.eta = eta
@@ -40,7 +40,7 @@ class BITStar:
         self.delta = 0.5
         self.x_range = (-1000, 5000)
         self.y_range = (-1000, 5000)
-        self.z_range = (0, 4000)
+        self.z_range = (0, 3600)
         self.fig = plt.figure()
         self.ax = self.fig.add_subplot(111,projection = '3d')
         '''
@@ -51,6 +51,12 @@ class BITStar:
         # cost follow the tree
         # calculated by the cost accumulation followed by a series of parent node.
         self.g_T =  dict() 
+        '''
+        Wind Data
+        '''
+        self.u = u
+        self.v = v
+        self.w = w
     ''' 
     def WIND(self):
         # Ambient wind
@@ -68,6 +74,7 @@ class BITStar:
         shape = np.array([1,1,2])
         self.obs1 = Obstacles(xyz0,abc,shape)
         self.obs1.draw()
+
         # Adding thermal updrafts
         #thermal_location = [2000,2000,2000]
         #thm1 = Thermals(thermal_location, type = "chimmney")
@@ -232,8 +239,10 @@ class BITStar:
         self.Tree.V = {v for v in self.Tree.V if self.g_T[v] < np.inf}
         
     def wind(self,points):
-        # wind = wind_catcher(-500,-400,899,u,v,w)
-        return [0,0,0]
+        print(points)
+        wind = wind_catcher(points[0],points[1],points[2],self.u,self.v,self.w)
+        #print(wind)
+        return wind
     
     def interpolate_points(start, end, num_points):
         points = []
@@ -637,14 +646,17 @@ class BITStar:
 
 def main():
     # TODO : 
-    x_start = (0, 0, 0.1)  # Starting node
+    x_start = (0.0, 0.0, 10.0)  # Starting node
     x_goal = (3000, 3000,3000)  # Goal node
     print("Start point is ", x_start)
     print("Goal point is ", x_goal)
     eta = 2 * 1 * 20 # radius 조절 parameter
     iter_max = 200 
     va = 20 
-    bit = BITStar(x_start, x_goal, eta, iter_max,va)
+    u = np.load('C:/Users/seung/WindData/u.npy')
+    v = np.load('C:/Users/seung/WindData/v.npy')
+    w = np.load('C:/Users/seung/WindData/w.npy')
+    bit = BITStar(x_start, x_goal, eta, iter_max,va,u,v,w)
     #bit.draw_things()
     bit.planning()
     print("start!!!")
