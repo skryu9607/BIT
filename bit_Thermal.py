@@ -14,7 +14,7 @@ from scipy.spatial.transform import Rotation as Rot
 import cProfile
 import pstats
 import io
-
+import wind_catcher
 #sys.path.append(os.path.dirname(os.path.abspath(__file__)) +
 #                "/../../Sampling_based_Planning/")
 
@@ -232,6 +232,7 @@ class BITStar:
         self.Tree.V = {v for v in self.Tree.V if self.g_T[v] < np.inf}
         
     def wind(self,points):
+        # wind = wind_catcher(-500,-400,899,u,v,w)
         return [0,0,0]
     
     def interpolate_points(start, end, num_points):
@@ -666,3 +667,4 @@ if __name__== '__main__':
     6. 앞에 뜨는 거 좀 지우기.
 
 '''
+ 

@@ -16,7 +16,7 @@ def wind_catcher(x,y,z,u,v,w):
     idx_z = int((z - resolution) / resolution)
 
     wind = [u[idx_x,idx_y,idx_z], v[idx_x,idx_y,idx_z], w[idx_x,idx_y,idx_z]]
-
+    
     return wind
 
 
