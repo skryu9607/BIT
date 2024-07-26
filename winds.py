@@ -40,9 +40,9 @@ def wind_catcher(x,y,z,u,v,w):
     return wind
 
 '''Windows '''
-u = np.load('C:/Users/seung/WindData/u.npy')
-v = np.load('C:/Users/seung/WindData/v.npy')
-w = np.load('C:/Users/seung/WindData/w.npy')
+u = np.load('C:/Users/seung/WindData/u_normal.npy')
+v = np.load('C:/Users/seung/WindData/v_normal.npy')
+w = np.load('C:/Users/seung/WindData/w_normal.npy')
 
-wind = wind_catcher(-1000,5000,3600,u,v,w)
+wind = wind_catcher(1000,120,700,u,v,w)
 print(wind)

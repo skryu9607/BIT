@@ -263,8 +263,13 @@ class BITStar:
             points.append([x, y, z])
             
         return points
-    
+    def arcsin_0_pi(x):
+        arcsin_value = np.arcsin(x)
+        if arcsin_value < 0:
+            return arcsin_value + np.pi
+        return arcsin_value
     def getting_tangential(self, pos, displacement_dir):
+        '''
         wind_dir = self.normalize(self.wind(pos))
         print("Position",pos,"Wind direction", wind_dir)
         V_dir = displacement_dir - wind_dir
@@ -272,8 +277,19 @@ class BITStar:
         if np.hypot(V_dir) != 1:
             print("Normalization is failed.")
         Vel_vector = self.va * V_dir
-        return 
+        return
+        '''
+        wind = self.wind(pos)
+        wind_dir = self.normalize(wind)
+        wind_intensity = np.linalg.norm(wind)
+        print("Wind Intensity is ",wind_intensity)
+        alp_i = np.arccos(np.dot(wind_dir,displacement_dir)/(wind_dir * self.normalize(displacement_dir)))
+        theta_i = self.arcsin_0_pi(wind_intensity * np.sin(alp_i)/ self.va)
+        if abs(wind_intensity * np.sin(alp_i)/ self.va) > 1:
+            print("wind_intensity * np.sin(alp_i)/ self.va is out of bound [-1,1]")
         #return self.va * np.dot(V_dir, displacement_dir) + np.linalg.norm(self.wind(pos)) * np.dot(wind_dir, displacement_dir)
+        v_tan_i = wind_intensity * np.cos(alp_i) + self.va * np.cos(theta_i)
+        return v_tan_i
         
     def cost(self, start, end):
         L0 = self.calc_dist(start,end)
@@ -295,6 +311,19 @@ class BITStar:
         return Cost
     
     def heuristics(self,start,end, n = 5):
+        PNTs = self.interpolate_points(start,end,n)
+        tan_values = []
+        direction = self.normalize(end.xyz - start.xyz)
+        for i in range(n):
+            if not self.obs1.collide(PNTs[i]):
+                tan_value = self.getting_tangential(PNTs[i],direction)
+                tan_values.append(tan_value)
+        if tan_values:
+            sorted_values = np.sort(tan_values)
+            best_case = np.max(tan_values)
+            
+            return self.calc_dist(start,end)/best_case
+        '''
         # Split하고 w_max를 더하자. 
         PNTs = self.interpolate_points(start,end,n)
         # PNTs 중에서 하나가 collide될 수도 있다. 
@@ -305,8 +334,7 @@ class BITStar:
                 tangential_value = self.getting_tangential(PNTs[i],direction)
                 tangential_values.append(tangential_value)
         #print(tangential_values)
-        if tangential_values:
-            '''
+        if tangential_values: 
             sorted_values = np.sort(tangential_values)
             # 하위 50%의 값을 선택합니다. : ellipsoid는 그려지나, 그게 솔루션 update는 하기 어려움
             # 하위 25% : min과 같은 의미
@@ -314,7 +342,6 @@ class BITStar:
             lower_25_percent = sorted_values[:len(sorted_values) // 4]
             # 하위 50%의 평균값을 계산합니다.
             worst_case = np.mean(lower_25_percent)
-            '''
             #worst_case = np.min(tangential_values)
             best_case = np.max(tangential_values)
             #worst_case = (tangential_values[0] + tangential_values[2]) / 2.0
@@ -326,6 +353,7 @@ class BITStar:
         
         else:
             return float('inf')
+        '''
             
     def f_estimated(self, node):
         return self.g_estimated(node) + self.h_estimated(node)
@@ -684,19 +712,23 @@ def main():
     eta = 2 * 1 * 20 # radius 조절 parameter
     iter_max = 200 
     va = 20 
-
+    ResolutionType = 'normal'
+    onedrive_path = 'C:/Users/seung/WindData/'
     #Mac
-    u = np.load('/Users/seung/Downloads/coarse/u_coarse.npy')
-    v = np.load('/Users/seung/Downloads/coarse/v_coarse.npy')
-    w = np.load('/Users/seung/Downloads/coarse/w_coarse.npy')
     '''
-    Windows
-    u = np.load('C:/Users/seung/WindData/u.npy')
-    v = np.load('C:/Users/seung/WindData/v.npy')
-    w = np.load('C:/Users/seung/WindData/w.npy')
+    u = np.load('/Users/seung/Downloads/coarse/u_{ResolutionType}.npy')
+    v = np.load('/Users/seung/Downloads/coarse/v_{ResolutionType}.npy')
+    w = np.load('/Users/seung/Downloads/coarse/w_{ResolutionType}.npy')
     '''
+    #Windows
+    u = np.load(f'{onedrive_path}u_{ResolutionType}.npy')
+    v = np.load(f'{onedrive_path}u_{ResolutionType}.npy')
+    w = np.load(f'{onedrive_path}u_{ResolutionType}.npy')
+    
+
     bit = BITStar(x_start, x_goal, eta, iter_max,va,u,v,w)
     #bit.draw_things()
+    bit.preo
     bit.planning()
     print("start!!!")
     #bit = BITStar(x_start, x_goal, eta, iter_max)

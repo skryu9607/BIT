@@ -222,7 +222,7 @@ x_len = x_max - x_min
 y_len = y_max - y_min
 
 # Resolution 설정 (개수)
-ResolutionType = 'coarse'
+ResolutionType = 'high'
 # Coarse 
 if ResolutionType == 'coarse':
     resolution = 20
@@ -278,22 +278,22 @@ print(w.shape)
 # np.save(f'C:/Users/seung/WindData/u_{ResolutionType}', u)
 # np.save(f'C:/Users/seung/WindData/v_{ResolutionType}', v)
 # np.save(f'C:/Users/seung/WindData/w_{ResolutionType}', w)
-'''
+
 # OneDrive 경로 설정
-onedrive_path = 'C:/Users/seung/OneDrive/문서/WindData/'
+onedrive_path = 'C:/Users/seung/WindData/'
 
 # 파일 저장 경로 설정
-u_file_path = f'{onedrive_path}u_coarse.npy'
-v_file_path = f'{onedrive_path}v_coarse.npy'
-w_file_path = f'{onedrive_path}w_coarse.npy'
+u_file_path = f'{onedrive_path}u_{ResolutionType}.npy'
+v_file_path = f'{onedrive_path}v_{ResolutionType}.npy'
+w_file_path = f'{onedrive_path}w_{ResolutionType}.npy'
 
 # 데이터 저장
-np.save(u_file_path, data)
-np.save(v_file_path, data)
-np.save(w_file_path, data)
+np.save(u_file_path, u)
+np.save(v_file_path, v)
+np.save(w_file_path, w)
 
 print("파일이 OneDrive에 저장되었습니다.")
-'''      
+  
 
 ######################################################################################################
 # Plot 1
