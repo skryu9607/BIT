@@ -25,7 +25,7 @@ Plot 정보
 
 # Perlin 노이즈를 사용하여 2D wind field map 생성
 
-def generate_wind_field(num_x, num_y, scale, wind_speed, seed):
+def noise_wind_field(num_x, num_y, scale, wind_speed, seed):
     np.random.seed(seed)
 
     u = np.zeros((num_x, num_y))
@@ -40,10 +40,23 @@ def generate_wind_field(num_x, num_y, scale, wind_speed, seed):
             angle     = noise1 * 2 * np.pi
             magnitude = noise2 * wind_speed + wind_speed
 
-            # 고도 (k) 에 따른 수평풍 변화는 없음
-            for k in range(num_z):    
-                u[i, j] = magnitude * np.cos(angle)
-                v[i, j] = magnitude * np.sin(angle)
+            u[i, j] = magnitude * np.cos(angle)
+            v[i, j] = magnitude * np.sin(angle)
+    
+    return u, v
+
+# Perlin 노이즈를 사용하여 2D wind field map 생성
+
+def uniform_wind_field(num_x, num_y, wind_speed):
+
+    u = np.zeros((num_x, num_y))
+    v = np.zeros((num_x, num_y))
+    
+    for i in range(num_x):
+        for j in range(num_y):
+            
+            u[i, j] = wind_speed
+            v[i, j] = 0
     
     return u, v
 
@@ -51,7 +64,7 @@ def generate_wind_field(num_x, num_y, scale, wind_speed, seed):
 
 # Thermal Model Function
 
-def allen_model(resolution,z, zi, w_star, x_min, x_max, y_min, y_max, u, v, xc, yc, xt_old, yt_old, u0=0, v0=0):
+def allen_model(resolution, z, zi, w_star, x_min, x_max, y_min, y_max, u, v, xc, yc, xt_old, yt_old, u0=0, v0=0):
     
     # 맵 데이터 파라미터
     x_len = x_max - x_min
@@ -79,18 +92,18 @@ def allen_model(resolution,z, zi, w_star, x_min, x_max, y_min, y_max, u, v, xc, 
     # 상승기류 최대 속도 계산 (wc)
     w_peak = 3 * w_avg * ((r2**2)*(r2-r1)) / (r2**3 - r1**3)
 
-    # (d/2) 가 각 축에 대해 몇 개의 grid로 이루어지는지
+    # r2 가 각 축에 대해 몇 개의 grid로 이루어지는지
     num_grid = int((r2) // resolution)
-    
+
     # xt_old, yt_old 의 인덱스
     xt_old_idx = int((xt_old - x_min)/resolution)
     yt_old_idx = int((yt_old - y_min)/resolution)
 
     # 2 * r2 의 정사각형 (중심은 xt_old, yt_old)에 해당하는 영역에 대한 인덱스 상/하한 -> u, v에 대한 인덱싱을 위해
-    idx_x_low = int(xt_old_idx - num_grid)
-    idx_x_upp = int(xt_old_idx - num_grid)
-    idx_y_low = int(yt_old_idx - num_grid)
-    idx_y_upp = int(yt_old_idx - num_grid)
+    idx_x_low = max(int(xt_old_idx - num_grid), 0)
+    idx_x_upp = min(int(xt_old_idx + num_grid), num_x)
+    idx_y_low = max(int(yt_old_idx - num_grid), 0)
+    idx_y_upp = min(int(yt_old_idx + num_grid), num_y)
 
     # Wx, Wy 는 해당 고도의 상승기류 내부 영역에 존재하는 수평풍 (u,v) 의 평균!!
     Wx = 0  # 초기화
@@ -99,13 +112,20 @@ def allen_model(resolution,z, zi, w_star, x_min, x_max, y_min, y_max, u, v, xc, 
         for idx_y in range(idx_y_low, idx_y_upp):
             Wx = Wx + u[idx_x,idx_y]
             Wy = Wy + v[idx_x,idx_y]
-    
-    Wx = Wx / ((2*num_grid + 1)*(2*num_grid + 1))
-    Wy = Wy / ((2*num_grid + 1)*(2*num_grid + 1))
+
+    Wx = Wx / ((idx_x_upp - idx_x_low + 1)*(idx_y_upp - idx_y_low + 1))
+    Wy = Wy / ((idx_x_upp - idx_x_low + 1)*(idx_y_upp - idx_y_low + 1))
+    # print(Wx,Wy)
 
     # Bencatel 모델 적용: 상승기류 중심선 위치 (xt,yt) 계산 [m]   * (xc,yc) : 지표면에서의 중심 좌표, (u0, v0) : thermal의 수평 이동 속도
     xt = xc + (Wx - u0) * z / w_avg
     yt = yc + (Wy - v0) * z / w_avg
+
+    # 0.85zi 이상의 고도에서의 thermal 중심의 위치는 0.85zi에서의 thermal 중심의 위치와 같다고 가정 (0.9 근처에서는 발산 우려)
+    if z >= 0.85*zi:
+        xt = xt_old
+        yt = yt_old
+    # print(xt,yt)
 
     # 2D 좌표 배열 생성
     x = np.linspace(x_min, x_max, num_x)
@@ -159,7 +179,7 @@ def allen_model(resolution,z, zi, w_star, x_min, x_max, y_min, y_max, u, v, xc, 
                 w_d[ii,jj] = 0
     # print(w_d)        
     
-    w = w_peak * (ws + w_d)         # 논문 수식과 다름
+    w = w_peak * (ws + w_d)
     
     # 해당 영역(S) 에서의 thermal 최대 개수 
     S = (x_len)*(y_len)
@@ -189,8 +209,8 @@ t.tic()
 # Thermal 파라미터 설정
 zi = 4000           # 대류 혼합층 두께 [m]
 w_star = 10         # 상승기류 속도 스케일 [m/s]
-xc = 1800            # 상승기류 중심의 x좌표 (지표면) (맵 중앙)
-yc = 2400            # 상승기류 중심의 y좌표 (지표면) (맵 중앙)
+xc = 1800            # 상승기류 중심의 x좌표 (지표면)
+yc = 2400            # 상승기류 중심의 y좌표 (지표면)
 
 # 맵 설정 [m] : x, y 축 절반 길이 (맵 중심은 (0,0))
 x_min = -1000
@@ -202,7 +222,7 @@ x_len = x_max - x_min
 y_len = y_max - y_min
 
 # Resolution 설정 (개수)
-ResolutionType = 'high'
+ResolutionType = 'coarse'
 # Coarse 
 if ResolutionType == 'coarse':
     resolution = 20
@@ -214,54 +234,31 @@ elif ResolutionType == 'highest':
     resolution = 1
 num_x = int((x_len / resolution) + 1)
 num_y = int((y_len / resolution) + 1)
-num_z = int(((0.9 * zi - resolution) / resolution) + 1)
-altitudes = np.linspace(resolution, 0.9*zi, num_z)
+# num_z = int(((0.9 * zi - resolution) / resolution) + 1)
+num_z = int(((zi - resolution) / resolution) + 1)
+
+altitudes = np.linspace(resolution, zi, num_z)
 
 # Horizontal Wind 파라미터 설정
 w_hor = 1           # 수평풍 속도 스케일  [m/s]
 scale = 0.1         # Perlin noise scale
 seed = 1            # seed number
 
-# 3차원 quiver의 길이 파라미터 (map 크기에 따라 보기 좋게 수정해주는 역할)
-# arrow_size = 30
-
-######################################################################################################
-# Plot 1
-######################################################################################################
-
 X, Y, Z = np.meshgrid(np.linspace(x_min, x_max, num_x), np.linspace(y_min, y_max, num_y), altitudes)
 
 # Horizontal Wind Vector Field 
-u, v = generate_wind_field(num_x, num_y, scale, w_hor, seed)
-
-# # Horizontal Wind Plot
-# ax = plt.axes()
-
-# wind = ax.quiver(X[:,:,0], Y[:,:,0], u[:,:,0], v[:,:,0], np.sqrt(u[:,:,0]**2 + v[:,:,0]**2), cmap=cm.winter.reversed())
-# plt.colorbar(wind, ax=ax, orientation='vertical').set_label('Wind Speed (m/s)')
-
-# # Set title and labels
-# plt.title('Wind Vector Map (2D)')
-# plt.xlabel('X [m]')
-# plt.ylabel('Y [m]')
-
-# # Show the plot
-# plt.show()
-
-######################################################################################################
-# Plot 2
-######################################################################################################
+# u, v = uniform_wind_field(num_x, num_y, w_hor)
+u, v = noise_wind_field(num_x, num_y, scale, w_hor, seed)
 
 # Vertical Wind (Thermal Updraft)
 w = np.empty((num_x, num_y, num_z))
-
 
 xt_old = xc
 yt_old = yc
 
 for i, z in enumerate(altitudes):
     
-    w_vert, xt, yt = allen_model(resolution,z, zi, w_star, x_min, x_max, y_min, y_max, u, v, xc, yc, xt_old, yt_old)
+    w_vert, xt, yt = allen_model(resolution, z, zi, w_star, x_min, x_max, y_min, y_max, u, v, xc, yc, xt_old, yt_old)
     if w_vert.shape == (num_x, num_y):
         w[:,:,i] = w_vert
     else:
@@ -273,9 +270,14 @@ for i, z in enumerate(altitudes):
         print("Writing... please wait")
 
 t.toc()
-np.save(f'C:/Users/seung/WindData/u_{ResolutionType}', u)
-np.save(f'C:/Users/seung/WindData/v_{ResolutionType}', v)
-np.save(f'C:/Users/seung/WindData/w_{ResolutionType}', w)
+
+print(u.shape)
+print(v.shape)
+print(w.shape)
+
+# np.save(f'C:/Users/seung/WindData/u_{ResolutionType}', u)
+# np.save(f'C:/Users/seung/WindData/v_{ResolutionType}', v)
+# np.save(f'C:/Users/seung/WindData/w_{ResolutionType}', w)
 '''
 # OneDrive 경로 설정
 onedrive_path = 'C:/Users/seung/OneDrive/문서/WindData/'
@@ -292,7 +294,33 @@ np.save(w_file_path, data)
 
 print("파일이 OneDrive에 저장되었습니다.")
 '''      
-# # 3D Surface Plot in a specific altitude 
+
+######################################################################################################
+# Plot 1
+######################################################################################################
+
+# 3차원 quiver의 길이 파라미터 (map 크기에 따라 보기 좋게 수정해주는 역할)
+# arrow_size = 30
+
+# # Horizontal Wind Plot
+# ax = plt.axes()
+
+# wind = ax.quiver(X[:,:,0], Y[:,:,0], u[:,:], v[:,:], np.sqrt(u[:,:]**2 + v[:,:]**2), cmap=cm.winter.reversed())
+# plt.colorbar(wind, ax=ax, orientation='vertical').set_label('Wind Speed (m/s)')
+
+# # Set title and labels
+# plt.title('Wind Vector Map (2D)')
+# plt.xlabel('X [m]')
+# plt.ylabel('Y [m]')
+
+# # Show the plot
+# plt.show()
+
+######################################################################################################
+# Plot 2
+######################################################################################################
+
+# 3D Surface Plot in a specific altitude 
 # fig = plt.figure()
 # ax = fig.add_subplot(111, projection='3d')
 # surf = ax.plot_surface(X[:,:,round(0.6*num_z)], Y[:,:,round(0.6*num_z)], w[:,:,round(0*num_z)], cmap=cm.winter.reversed())
@@ -303,9 +331,11 @@ print("파일이 OneDrive에 저장되었습니다.")
 # plt.title("Updraft Thermal Model with Leaning")
 # plt.show()
 
-# ######################################################################################################
-# # Plot 3
-# ######################################################################################################
+######################################################################################################
+# Plot 3
+######################################################################################################
+
+# arrow_size = 30
 
 # # Wind speed [m/s]
 # s = np.sqrt(u**2 + v**2 + w**2)
