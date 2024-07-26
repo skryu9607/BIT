@@ -83,7 +83,6 @@ class BITStar:
     def prepare(self):
         self.Tree.V.add(self.x_start)
         self.X_sample.add(self.x_goal)
-        
         self.g_T[self.x_start] = 0.0
         self.g_T[self.x_goal] = np.inf
         # At first glance, the batch size is just the distance between start point and the goal point. 
@@ -102,6 +101,7 @@ class BITStar:
     def planning(self):
         cMin,xCenter = self.prepare()
         self.draw_things()
+        self.check()
         #if self.Tree.QV is None:
             #print()
         self.fig = plt.figure()
@@ -239,7 +239,7 @@ class BITStar:
         self.Tree.V = {v for v in self.Tree.V if self.g_T[v] < np.inf}
         
     def wind(self,points):
-        print(points)
+        #print(points)
         wind = wind_catcher(points[0],points[1],points[2],self.u,self.v,self.w)
         #print(wind)
         return wind
@@ -264,7 +264,7 @@ class BITStar:
         
     def cost(self, start, end):
         L0 = self.calc_dist(start,end)
-        N = 3
+        N = 100
         Cost = 0
         PNTs = self.interpolate_points(start,end,N)
         l0 = self.normalize(end.xyz - start.xyz)
@@ -280,7 +280,7 @@ class BITStar:
         print("Cost is ",Cost)
         return Cost
     
-    def heuristics(self,start,end, n = 3):
+    def heuristics(self,start,end, n = 12):
         # Split하고 w_max를 더하자. 
         PNTs = self.interpolate_points(start,end,n)
         # PNTs 중에서 하나가 collide될 수도 있다. 
@@ -294,7 +294,7 @@ class BITStar:
             worst_case = np.min(tangential_values)
             #print("Worst tangential value is ",worst_case)
             #print("The distance btwn start and end is" ,self.calc_dist(start,end))
-            #print(self.calc_dist(start,end) / worst_case)
+            #print("Same nodes the cost : ", self.cost(start,end))
             return self.calc_dist(start,end) / worst_case
         else:
             return float('inf')
@@ -305,13 +305,19 @@ class BITStar:
     def g_estimated(self, node):
         if self.x_start == node:
             return 0
-        return self.heuristics(self.x_start,node)
+        return self.cost(self.x_start,node)
     def h_estimated(self, node):
         if self.x_goal == node:
             return 0
         #return self.calc_dist(node, self.x_goal)
         return self.heuristics(node,self.x_goal)
-    
+    def check(self):
+        start = self.x_start
+        print("f_estimated : ",self.f_estimated(start))
+        print("g_estimated : ",self.g_estimated(start))
+        print("h_estimated : ",self.h_estimated(start))
+        
+        
     def Sample(self, m, cMax, cMin, xCenter):
         if cMax < np.inf:
             return self.SampleEllipsoid(m, cMax, cMin, xCenter)
@@ -660,6 +666,8 @@ def main():
     #bit.draw_things()
     bit.planning()
     print("start!!!")
+    print("Checking getting tangential")
+    print()
     #bit = BITStar(x_start, x_goal, eta, iter_max)
     #bit.animation("Batch Informed Trees (BIT*)")
     
