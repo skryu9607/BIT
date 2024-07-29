@@ -104,14 +104,15 @@ class BITStar:
         self.draw_things()
         #if self.Tree.QV is None:
             #print()
-        self.fig = plt.figure()
+        self.fig = plt.figure(figsize = (15,15))
 
         self.ax = self.fig.add_subplot(111,projection = '3d')
         self.ax.view_init(elev=60, azim=30)
         self.ax.scatter(self.x_start.x,self.x_start.y,self.x_start.z,marker = 'd' ,color = 'blue',s = 1)
         self.ax.scatter(self.x_goal.x,self.x_goal.y,self.x_goal.z,marker = 's' ,color = 'blue',s = 1)
         self.flagE = True
-        for k in range(250*4):
+        max_iterations = 250 * 4
+        for k in range(max_iterations):
             # Batch Creation
             if not self.Tree.QE and not self.Tree.QV:
                 if self.flagE:
@@ -263,11 +264,7 @@ class BITStar:
             points.append([x, y, z])
             
         return points
-    def arcsin_0_pi(x):
-        arcsin_value = np.arcsin(x)
-        if arcsin_value < 0:
-            return arcsin_value + np.pi
-        return arcsin_value
+
     def getting_tangential(self, pos, displacement_dir):
         '''
         wind_dir = self.normalize(self.wind(pos))
@@ -282,13 +279,16 @@ class BITStar:
         wind = self.wind(pos)
         wind_dir = self.normalize(wind)
         wind_intensity = np.linalg.norm(wind)
-        print("Wind Intensity is ",wind_intensity)
-        alp_i = np.arccos(np.dot(wind_dir,displacement_dir)/(wind_dir * self.normalize(displacement_dir)))
+        #print("Wind Intensity is ",wind_intensity)
+        # Even the norm of displacement_dir is 1. 
+        alp_i = np.arccos(np.dot(wind_dir,displacement_dir)/(np.linalg.norm(wind_dir) * np.linalg.norm(displacement_dir))) 
         theta_i = self.arcsin_0_pi(wind_intensity * np.sin(alp_i)/ self.va)
         if abs(wind_intensity * np.sin(alp_i)/ self.va) > 1:
             print("wind_intensity * np.sin(alp_i)/ self.va is out of bound [-1,1]")
+            return LookupError
         #return self.va * np.dot(V_dir, displacement_dir) + np.linalg.norm(self.wind(pos)) * np.dot(wind_dir, displacement_dir)
         v_tan_i = wind_intensity * np.cos(alp_i) + self.va * np.cos(theta_i)
+        
         return v_tan_i
         
     def cost(self, start, end):
@@ -529,7 +529,12 @@ class BITStar:
             x, y, z = random.uniform(-1, 1), random.uniform(-1, 1), random.uniform(-1,1)
             if x ** 2 + y ** 2 + z ** 2 < 1:
                 return np.array([[x], [y], [z]]).T
-            
+    @staticmethod
+    def arcsin_0_pi(x):
+        arcsin_value = np.arcsin(x)
+        if arcsin_value < 0:
+            return arcsin_value + np.pi
+        return arcsin_value        
     @staticmethod
     # estimation part should be changed. Not only distance but also energy cost.
     def interpolate_points(point1, point2, num_points):
@@ -722,13 +727,12 @@ def main():
     '''
     #Windows
     u = np.load(f'{onedrive_path}u_{ResolutionType}.npy')
-    v = np.load(f'{onedrive_path}u_{ResolutionType}.npy')
-    w = np.load(f'{onedrive_path}u_{ResolutionType}.npy')
-    
+    v = np.load(f'{onedrive_path}v_{ResolutionType}.npy')
+    w = np.load(f'{onedrive_path}w_{ResolutionType}.npy')
+    print(u.shape,v.shape,w.shape)
 
     bit = BITStar(x_start, x_goal, eta, iter_max,va,u,v,w)
     #bit.draw_things()
-    bit.preo
     bit.planning()
     print("start!!!")
     #bit = BITStar(x_start, x_goal, eta, iter_max)

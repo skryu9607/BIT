@@ -101,7 +101,7 @@ class Obstacles:
         ax = plt.axes(projection='3d')
 
         # 삼각형 메쉬 플롯
-        ax.plot_trisurf(verts[:, 0], verts[:, 1], verts[:, 2], triangles=faces, cmap='viridis', alpha=0.8, edgecolor='black',)
+        ax.plot_trisurf(verts[:, 0], verts[:, 1], verts[:, 2], triangles=faces, cmap='viridis', alpha=0.8, edgecolor='black')
 
         # 축 설정 및 표시
         ax.set_xlabel('X')

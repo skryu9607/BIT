@@ -35,7 +35,7 @@ def wind_catcher(x,y,z,u,v,w):
     if z > 0.9 * zi:
         wind = [u[idx_x,idx_y], v[idx_x,idx_y], 0.]
     else:
-        wind = [u[idx_x,idx_y], v[idx_x,idx_y], w[idx_x,idx_y,idx_z]]
+        wind = [u[idx_x,idx_y], v[idx_x,idx_y], w[idx_x, idx_y, idx_z]]
 
     return wind
 
@@ -46,3 +46,5 @@ w = np.load('C:/Users/seung/WindData/w_normal.npy')
 
 wind = wind_catcher(1000,120,700,u,v,w)
 print(wind)
+print("w[1,1,1] is ", w[1,1,1])
+print(u.shape,v.shape,w.shape)

@@ -1,7 +1,7 @@
 """
 Batch Informed Trees (BIT*)
 @author: huiming zhou
-@edited : Seung Ryu
+@edited : SeungKeol Ryu and MinJo Jung
 """
 
 import os
