@@ -323,6 +323,7 @@ class BITStar:
             best_case = np.max(tan_values)
             
             return self.calc_dist(start,end)/best_case
+        
         '''
         # Split하고 w_max를 더하자. 
         PNTs = self.interpolate_points(start,end,n)
