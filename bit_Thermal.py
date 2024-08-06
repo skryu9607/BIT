@@ -30,22 +30,18 @@ class BITStar:
         self.eta = eta
         self.iter_max = iter_max
         self.va = va
-        ''' TODO : after writing, for visualization, I have to do this.
-        self.env = env.Env()
-        self.plotting = plotting.Plotting(x_start,x_goal)
-        self.utils = utils.Utils()
-        
-        self.fig,self.ax = plt.subplots()
-        '''
-        self.delta = 0.5
+        self.delta = 10.0
         self.x_range = (-1000, 5000)
         self.y_range = (-1000, 5000)
         self.z_range = (0, 4000)
-        self.fig = plt.figure()
+
+        self.fig = plt.figure(figsize=(15,12))
         self.ax = self.fig.add_subplot(111,projection = '3d')
+        
         '''
         Obstacles' shapes are assigned.
         '''
+
         self.Tree = Tree(self.x_start,self.x_goal)
         self.X_sample = set()
         # cost follow the tree
@@ -57,6 +53,8 @@ class BITStar:
         self.u = u
         self.v = v
         self.w = w
+        self.draw_things()
+        
     ''' 
     def WIND(self):
         # Ambient wind
@@ -67,19 +65,15 @@ class BITStar:
         
         # Concatenation of each elements of wind vector
     '''    
+
     def draw_things(self):
         # Adding obstacles
-        xyz0 = [1000,1000,1000]
-        abc = np.array([100,100,100])
-        shape = np.array([1,1,2])
-        self.obs1 = Obstacles(xyz0,abc,shape)
-        self.obs1.draw()
+        xyz0 = [1000.,1000.,1000.]
+        abc = np.array([200.,200.,200.])
+        shape = np.array([1.,1.,2.])
+        self.obs1 = Obstacles(xyz0,abc,shape,self.x_range,self.y_range,self.z_range)
+        self.obs1.draw(self.ax)
 
-        # Adding thermal updrafts
-        #thermal_location = [2000,2000,2000]
-        #thm1 = Thermals(thermal_location, type = "chimmney")
-        #thm1.draw()
-        
     def prepare(self):
         self.Tree.V.add(self.x_start)
         self.X_sample.add(self.x_goal)
@@ -90,6 +84,7 @@ class BITStar:
         distMin, _ = self.calc_dist_and_angle(self.x_start, self.x_goal)
         
         cMin = distMin/self.va
+        
         # Center points
         xCenter = np.array([[(self.x_start.x + self.x_goal.x) / 2.0],
                             [(self.x_start.y + self.x_goal.y) / 2.0],
@@ -101,21 +96,22 @@ class BITStar:
     
     def planning(self):
         cMin,xCenter = self.prepare()
-        self.draw_things()
         #if self.Tree.QV is None:
             #print()
-        self.fig = plt.figure(figsize = (15,15))
-
-        self.ax = self.fig.add_subplot(111,projection = '3d')
+        
+        
+        #self.fig = plt.figure(figsize = (15,12))
+        #self.ax = self.fig.add_subplot(111,projection = '3d')
         self.ax.view_init(elev=60, azim=30)
         self.ax.scatter(self.x_start.x,self.x_start.y,self.x_start.z,marker = 'd' ,color = 'blue',s = 1)
         self.ax.scatter(self.x_goal.x,self.x_goal.y,self.x_goal.z,marker = 's' ,color = 'blue',s = 1)
-        self.flagE = True
-        max_iterations = 250 * 4
+        
+        self.flagF = True
+        max_iterations = 1000
         for k in range(max_iterations):
             # Batch Creation
             if not self.Tree.QE and not self.Tree.QV:
-                if self.flagE:
+                if self.flagF:
                     m =  100 * 3
                     print("Sampling in FreeSpace \n")
                 else:
@@ -123,6 +119,7 @@ class BITStar:
                     m = 100 * 1
                 # Reach goal points
                 if self.x_goal.parent is not None:
+                    self.flagF = False
                     path_x, path_y, path_z = self.ExtractPath()
                     print("Solution Found")
                     plt.title("Wind Aware Batch Informed Trees")
@@ -152,7 +149,7 @@ class BITStar:
                 
                 print("The number of Tree.QV is ", len(self.Tree.QV))
                 
-                if self.flagE:
+                if self.flagF:
                     self.Tree.r = 50
                 else:
                     self.Tree.r = self.Radius(len(self.Tree.V) + len(self.X_sample))
@@ -175,7 +172,7 @@ class BITStar:
             #print("self.g_T is ",self.g_T)
             if self.g_T[vm] + self.calc_dist(vm, xm)/self.va + self.h_estimated(xm) < self.g_T[self.x_goal]:
                 actual_cost = self.cost(vm, xm)
-                print("Actual Cost is ",actual_cost)
+                #print("Actual Cost is ",actual_cost)
                 if self.g_estimated(vm) + actual_cost + self.h_estimated(xm) < self.g_T[self.x_goal]:
                     if self.g_T[vm] + actual_cost < self.g_T[xm]:
                         if xm in self.Tree.V:
@@ -209,7 +206,7 @@ class BITStar:
                 self.Tree.QE = set()
                 self.Tree.QV = set()
             #print("k is", k)
-            if k % 10 == 0:
+            if k % 20 == 0:
                 print("cMax is ", self.g_T[self.x_goal],"cMin is ",cMin)
                 print("The number of self.Tree.V_old is",len(self.Tree.V_old))
                 print("The number of self.Tree.V is",len(self.Tree.V))
@@ -293,7 +290,7 @@ class BITStar:
         
     def cost(self, start, end):
         L0 = self.calc_dist(start,end)
-        N = 10
+        N = 20
         Cost = 0
         PNTs = self.interpolate_points(start,end,N)
         l0 = self.normalize(end.xyz - start.xyz)
@@ -323,38 +320,7 @@ class BITStar:
             best_case = np.max(tan_values)
             
             return self.calc_dist(start,end)/best_case
-        
-        '''
-        # Split하고 w_max를 더하자. 
-        PNTs = self.interpolate_points(start,end,n)
-        # PNTs 중에서 하나가 collide될 수도 있다. 
-        tangential_values = []
-        direction = self.normalize(end.xyz - start.xyz)
-        for i in range(n):
-            if not self.obs1.collide(PNTs[i]):
-                tangential_value = self.getting_tangential(PNTs[i],direction)
-                tangential_values.append(tangential_value)
-        #print(tangential_values)
-        if tangential_values: 
-            sorted_values = np.sort(tangential_values)
-            # 하위 50%의 값을 선택합니다. : ellipsoid는 그려지나, 그게 솔루션 update는 하기 어려움
-            # 하위 25% : min과 같은 의미
-            # 평균치 : solution을 못 찾음, 효율적이지 않은 search.
-            lower_25_percent = sorted_values[:len(sorted_values) // 4]
-            # 하위 50%의 평균값을 계산합니다.
-            worst_case = np.mean(lower_25_percent)
-            #worst_case = np.min(tangential_values)
-            best_case = np.max(tangential_values)
-            #worst_case = (tangential_values[0] + tangential_values[2]) / 2.0
-            #print("Start, End, worst case, heuristics",start.xyz,end.xyz, worst_case, self.calc_dist(start,end) / worst_case)
-            #print("Worst tangential value is ",worst_case)
-            #print("The distance btwn start and end is" ,self.calc_dist(start,end))
-            #print(self.calc_dist(start,end) / worst_case)
-            return self.calc_dist(start,end) / best_case
-        
-        else:
-            return float('inf')
-        '''
+
             
     def f_estimated(self, node):
         return self.g_estimated(node) + self.h_estimated(node)
@@ -394,9 +360,6 @@ class BITStar:
         Sample = set()
         while ind < m :
             xBall = self.SampleUnitNBall()
-            #print("xBall", xBall.T)
-            #print("L is ", L)
-            #print(self.C)
             x_radius_change = L @ xBall.flatten()
             #print("x_radius_change is", x_radius_change)
             x_rand_before_center = self.C @ x_radius_change 
@@ -413,24 +376,6 @@ class BITStar:
             if not in_obs and in_x_range and in_y_range and in_z_range:
                 Sample.add(node)
                 ind += 1
-                
-        '''
-        while ind < m:
-            
-            xBall = self.SampleUnitNBall()
-            
-            x_rand = np.dot(np.dot(C, L), xBall) + xCenter
-            
-            # node = Node(x_rand[(0, 0)], x_rand[(1, 0)])
-            node = Node([x_rand[(0, 0)], x_rand[(1, 0)], x_rand[(2,0)]])
-            in_obs = self.obs1.collide(node.xyz)
-            in_x_range = self.x_range[0] + delta <= node.x <= self.x_range[1] - delta
-            in_y_range = self.y_range[0] + delta <= node.y <= self.y_range[1] - delta
-            in_z_range = self.z_range[0] + delta <= node.z <= self.z_range[1] - delta
-            if not in_obs and in_x_range and in_y_range and in_z_range:
-                Sample.add(node)
-                ind += 1
-        '''
         return Sample
 
     def SampleFreeSpace(self, m):
@@ -457,7 +402,7 @@ class BITStar:
         cBest = self.g_T[self.x_goal]
         
         lambda_X = len([1 for v in self.Tree.V if self.f_estimated(v) <= cBest])
-        print("Lambda_X and q are ",lambda_X,q)
+        #print("Lambda_X and q are ",lambda_X,q)
         radius = 2 * self.eta * (1.5 * lambda_X / math.pi * math.log(q) / q) ** 0.5
         print("radius is ",radius) 
         
@@ -467,9 +412,9 @@ class BITStar:
         # QV에 있는 거 지우면서 EXPAND 시작하기.
         self.Tree.QV.remove(v) 
         # X_near은 Sample들 중에서 radius r 안에 들어오는 모든 X_samples. 
-        print("X_sample's length",len(self.X_sample))
+        #print("X_sample's Number",len(self.X_sample))
         X_near = {x for x in self.X_sample if self.calc_dist(x, v)/self.va <= self.Tree.r}
-        print("X_near's length",len(X_near))
+        #print("X_near's Number",len(X_near))
         
         for x in X_near:
             # estimated 는 어떻게 얻는걸까?
@@ -590,17 +535,17 @@ class BITStar:
                 lambda event: [exit(0) if event.key == 'escape' else None])
 
             for v in self.X_sample:
-                if not self.flagE:
-                    print("Ellipsoid")
-                    self.ax.scatter(v.x, v.y, v.z, marker='.', color='black', s = 4)
-                if self.flagE:
-                    self.ax.scatter(v.x, v.y, v.z, marker='.', color='lightgrey', s = 1)
+                if not self.flagF:
+                    #print("Ellipsoid")
+                    self.ax.scatter(v.x, v.y, v.z, marker='.', color='grey', s = 1)
+                if self.flagF:
+                    self.ax.scatter(v.x, v.y, v.z, marker='.', color='black', s = 1)
             if cMax < np.inf:
                 # TODO : Changing 3D
                 self.draw_ellipse(self.ax, xCenter, cMax, cMin)
 
             for v, w in self.Tree.E:
-                self.ax.plot([v.x, w.x], [v.y, w.y], [v.z, w.z],'-g',linewidth = 2)
+                self.ax.plot([v.x, w.x], [v.y, w.y], [v.z, w.z],'-g',linewidth = 2, alpha = 0.5)
                 
             plt.draw()
             plt.pause(0.01)
@@ -672,8 +617,8 @@ class BITStar:
         cy = x_center[1]
         cz = x_center[2]
         
-        t = np.arange(0, 2 * math.pi + 0.1, 0.1)
-        phi = np.arange(0, 2 * math.pi + 0.1, 0.1)
+        t = np.arange(0, 2 * math.pi + 0.1, 0.2)
+        phi = np.arange(0, 2 * math.pi + 0.1, 0.2)
 
         x = [a * math.sin(iphi) * math.cos(it)  for it in t for iphi in phi]
         y = [b * math.sin(iphi) * math.sin(it)  for it in t for iphi in phi]
@@ -720,7 +665,7 @@ def main():
     va = 20 
     ResolutionType = 'normal'
     onedrive_path = 'C:/Users/seung/WindData/'
-    #Mac
+    #Mac : OneDrive
     '''
     u = np.load('/Users/seung/Downloads/coarse/u_{ResolutionType}.npy')
     v = np.load('/Users/seung/Downloads/coarse/v_{ResolutionType}.npy')
@@ -745,7 +690,6 @@ if __name__== '__main__':
 
 '''
 
-1) Wind 넣어서 확인해보기 
 2) plot 잘 해보기. (가시성 높이는), Transparent하게?
     1. path 하나 찾으면, 이전 것들 없애기. Like the reference.
     2. [px,py,pz] : 덜 촘촘하게? : 투명도가 조절된다면..?

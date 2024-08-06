@@ -17,7 +17,7 @@ from scipy.spatial.transform import Rotation as Rot
 #                "/../../Sampling_based_Planning/")
 
 #from Sampling_based_Planning.rrt_2D import env, plotting, utils
-import env1 as env
+import env_reference as env
 import utils
 import plotting
 # Static method : class를 딱히 안 부르면, class method와 비슷하게 바로 사용가능

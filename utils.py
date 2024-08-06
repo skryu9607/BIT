@@ -10,7 +10,7 @@ import sys
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) +
                 "/../../Sampling_based_Planning/rrt_2D")
-import env1 as env
+import env_reference as env
 import rrt
 
 

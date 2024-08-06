@@ -222,7 +222,7 @@ x_len = x_max - x_min
 y_len = y_max - y_min
 
 # Resolution 설정 (개수)
-ResolutionType = 'high'
+ResolutionType = 'highest'
 # Coarse 
 if ResolutionType == 'coarse':
     resolution = 20
