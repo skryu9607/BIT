@@ -99,12 +99,12 @@ class BITStar:
         #if self.Tree.QV is None:
             #print()
         
-        
+        self.text = None
         #self.fig = plt.figure(figsize = (15,12))
         #self.ax = self.fig.add_subplot(111,projection = '3d')
         self.ax.view_init(elev=60, azim=30)
-        self.ax.scatter(self.x_start.x,self.x_start.y,self.x_start.z,marker = 'd' ,color = 'blue',s = 1)
-        self.ax.scatter(self.x_goal.x,self.x_goal.y,self.x_goal.z,marker = 's' ,color = 'blue',s = 1)
+        self.ax.scatter(self.x_start.x,self.x_start.y,self.x_start.z,marker = 'd' ,color = 'magenta',s = 9)
+        self.ax.scatter(self.x_goal.x,self.x_goal.y,self.x_goal.z,marker = 's' ,color = 'magenta',s = 9)
         
         self.flagF = True
         max_iterations = 1000
@@ -116,18 +116,17 @@ class BITStar:
                     print("Sampling in FreeSpace \n")
                 else:
                     print("Sampling in Ellipsoid \n")
-                    m = 100 * 1
+                    m = 100 * 1.5
                 # Reach goal points
                 if self.x_goal.parent is not None:
                     self.flagF = False
                     path_x, path_y, path_z = self.ExtractPath()
                     print("Solution Found")
-                    plt.title("Wind Aware Batch Informed Trees")
-                    plt.xlabel("X")
-                    plt.ylabel("Y")
+                    
                     #plt.zlabel("Z")
                     plt.plot(path_x, path_y, path_z , linewidth=2, color='r',linestyle ='--')
-                    plt.pause(0.01)
+                    plt.pause(0.001)
+                    plt.savefig(f'{k} th iteration.png')
                 # g_T :  Current Tree 구조상에서의 cost-to
                 # self.Prune(기준 cost.), 목적지까지 가는 cost-to-come보다 작은 vertices들은
                 #은 삭제된다. 
@@ -529,7 +528,11 @@ class BITStar:
         # axis(축) 내용을 지우는 함수이다. 이 함수를 호출하면 현재 플롯의 모든 데이터, 레이블, 타이틀 등이 지워진다. 
         #plt.cla()
         #self.plot_grid("Batch Informed Trees (BIT*)")
+        if self.text is None:
+                self.text = self.ax.text2D(0.05, 0.95, "", fontsize=15, transform=self.ax.transAxes, verticalalignment='top')
+
         try:
+            
             self.fig.canvas.mpl_connect(
                 'key_release_event',
                 lambda event: [exit(0) if event.key == 'escape' else None])
@@ -546,7 +549,13 @@ class BITStar:
 
             for v, w in self.Tree.E:
                 self.ax.plot([v.x, w.x], [v.y, w.y], [v.z, w.z],'-g',linewidth = 2, alpha = 0.5)
-                
+            path_cost = self.g_T[self.x_goal]
+            path_text = f"Cost: {path_cost}"
+            self.text.set_text(path_text)
+            #self.ax.text2D(0.05, 0.95, path_text, fontsize=15, transform=self.ax.transAxes, verticalalignment='top')
+            plt.title("Wind Aware Batch Informed Trees")
+            plt.xlabel("X")
+            plt.ylabel("Y")
             plt.draw()
             plt.pause(0.01)
             
