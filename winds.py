@@ -39,12 +39,12 @@ def wind_catcher(x,y,z,u,v,w):
 
     return wind
 
-'''Windows '''
-u = np.load('C:/Users/seung/WindData/u_normal.npy')
-v = np.load('C:/Users/seung/WindData/v_normal.npy')
-w = np.load('C:/Users/seung/WindData/w_normal.npy')
+# '''mac '''
+# u = np.load(f'C:/Users/seung/WindData/{ResolutionType}/u_normal.npy')
+# v = np.load(f'C:/Users/seung/WindData/v_normal.npy')
+# w = np.load(f'C:/Users/seung/WindData/w_normal.npy')
 
-wind = wind_catcher(1000,120,700,u,v,w)
-print(wind)
-print("w[1,1,1] is ", w[1,1,1])
-print(u.shape,v.shape,w.shape)
+# wind = wind_catcher(1000,120,700,u,v,w)
+# print(wind)
+# print("w[1,1,1] is ", w[1,1,1])
+# print(u.shape,v.shape,w.shape)

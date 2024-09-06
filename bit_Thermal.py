@@ -14,6 +14,7 @@ from scipy.spatial.transform import Rotation as Rot
 import cProfile
 import pstats
 import io
+import json
 from winds import wind_catcher
 #sys.path.append(os.path.dirname(os.path.abspath(__file__)) +
 #                "/../../Sampling_based_Planning/")
@@ -98,14 +99,27 @@ class BITStar:
         cMin,xCenter = self.prepare()
         #if self.Tree.QV is None:
             #print()
-        
-        self.text = None
+        cost_past = np.inf
         #self.fig = plt.figure(figsize = (15,12))
         #self.ax = self.fig.add_subplot(111,projection = '3d')
         self.ax.view_init(elev=60, azim=30)
-        self.ax.scatter(self.x_start.x,self.x_start.y,self.x_start.z,marker = 'd' ,color = 'magenta',s = 9)
-        self.ax.scatter(self.x_goal.x,self.x_goal.y,self.x_goal.z,marker = 's' ,color = 'magenta',s = 9)
-        
+        self.ax.scatter(self.x_start.x,self.x_start.y,self.x_start.z,marker = 'd' ,color = 'blue',s = 1)
+        self.ax.scatter(self.x_goal.x,self.x_goal.y,self.x_goal.z,marker = 's' ,color = 'blue',s = 1)
+        file_path = "data.json"
+
+        # 기존 JSON 파일이 존재하는지 확인
+        if os.path.exists(file_path):
+            with open(file_path, "r", encoding="utf-8") as file:
+                try:
+                    #data_list = json.load(file)  # 기존 데이터를 리스트로 로드
+                    data_list = []
+                    if not isinstance(data_list, list):
+                        data_list = []  # 만약 데이터가 리스트가 아니라면 빈 리스트로 초기화
+                except json.JSONDecodeError:
+                    data_list = []  # 파일이 비어있거나 잘못된 경우 빈 리스트로 초기화
+        else:
+            data_list = []
+
         self.flagF = True
         max_iterations = 1000
         for k in range(max_iterations):
@@ -121,12 +135,47 @@ class BITStar:
                 if self.x_goal.parent is not None:
                     self.flagF = False
                     path_x, path_y, path_z = self.ExtractPath()
+                    cost_current = self.g_T[self.x_goal]
+                    if cost_past == cost_current:
+                        print("Can't be improved")
+                        break
+                    cost_past = cost_current
                     print("Solution Found")
-                    
+                    plt.title("Wind Aware Batch Informed Trees")
+                    plt.xlabel("X")
+                    plt.ylabel("Y")
+                    #plt.zlabel("Z")
                     #plt.zlabel("Z")
                     plt.plot(path_x, path_y, path_z , linewidth=2, color='r',linestyle ='--')
                     plt.pause(0.001)
                     plt.savefig(f'{k} th iteration.png')
+                    self.FlagTransparent = True
+                    print(self.x_start)
+                # JSON에 저장할 데이터 구성
+                    data = {
+                        "Start point": self.x_start.xyz.tolist(),  # 리스트 변환
+                        "Goal point": self.x_goal.xyz.tolist(),
+                        "Iteration number": k,
+                        "Path": [path_x, path_y, path_z],
+                        "Cost": self.g_T[self.x_goal],  # 목표점까지의 비용
+                    }
+                    '''
+                    우리가 만든 코드 자체가 뭔가 있긴 있어. Thermal도 나름 realistic, path cost도 path following 개념으로
+                    찾았어. 성능평가
+                    1. 다양한 환경에서 ㄴㄴ -> obstacle 위치,갯수, thermal 위치, 갯수
+                    2. 이게 RRT보다 좋은지 등 이런 비교가 없어. 2번을 해야지, 1번에서 실험하겠지? 
+                    급한거
+                    a. 너가 thermal model description -> 민조가 이거를 빨리! 
+                    1번을 많이 짜서 실험결과 나한테. 
+                    '''
+                    # 기존 리스트에 데이터 추가
+                    data_list.append(data)
+
+                    # JSON 파일에 리스트 다시 저장
+                    with open(file_path, "w", encoding="utf-8") as file:
+                        json.dump(data_list, file, ensure_ascii=False, indent=4)
+
+                    print(f"Iteration {k}: 데이터 저장 완료")
                 # g_T :  Current Tree 구조상에서의 cost-to
                 # self.Prune(기준 cost.), 목적지까지 가는 cost-to-come보다 작은 vertices들은
                 #은 삭제된다. 
@@ -142,8 +191,8 @@ class BITStar:
                 self.X_sample.update(self.Sample(m, self.g_T[self.x_goal], cMin, xCenter))
                 
                 self.Tree.V_old = {v for v in self.Tree.V} 
-                print("The number of Tree.V_old is ",len(self.Tree.V_old))
-                print("The number of Tree.V is ",len(self.Tree.V))
+                #print("The number of Tree.V_old is ",len(self.Tree.V_old))
+                #print("The number of Tree.V is ",len(self.Tree.V))
                 self.Tree.QV = {v for v in self.Tree.V}
                 
                 print("The number of Tree.QV is ", len(self.Tree.QV))
@@ -152,15 +201,15 @@ class BITStar:
                     self.Tree.r = 50
                 else:
                     self.Tree.r = self.Radius(len(self.Tree.V) + len(self.X_sample))
-                    print("Radius in Ellipsoid is", self.Tree.r)
-                    print("q is", len(self.Tree.V) + len(self.X_sample))
+                    #print("Radius in Ellipsoid is", self.Tree.r)
+                    #print("q is", len(self.Tree.V) + len(self.X_sample))
                 # Printing cBest <- Infinity
                 print("Expansion")
             # 확장이 benefit할 때까지.
             # Best Edge가 있는한, 그걸 확장해야한다. 
             while self.BestVertexQueueValue() <= self.BestEdgeQueueValue():
-                print("The number of QV ",len(self.Tree.QV))
-                print("The number of QE ",len(self.Tree.QE))
+                #print("The number of QV ",len(self.Tree.QV))
+                #print("The number of QE ",len(self.Tree.QE))
                 self.ExpandVertex(self.BestInVertexQueue())
             
             # Best means "minimum". min(distance).
@@ -201,6 +250,7 @@ class BITStar:
 
                         for edge in set_delete:
                             self.Tree.QE.remove(edge)
+
             else:
                 self.Tree.QE = set()
                 self.Tree.QV = set()
@@ -210,7 +260,7 @@ class BITStar:
                 print("The number of self.Tree.V_old is",len(self.Tree.V_old))
                 print("The number of self.Tree.V is",len(self.Tree.V))
                 self.animation(xCenter, self.g_T[self.x_goal], cMin)
-
+        
         # Found the path
         path_x, path_y, path_z = self.ExtractPath()
         self.ax.plot(path_x, path_y, path_z, linewidth=2, color='r',linestyle ='--')
@@ -673,18 +723,19 @@ def main():
     iter_max = 200 
     va = 20 
     ResolutionType = 'normal'
-    onedrive_path = 'C:/Users/seung/WindData/'
+    onedrive_path = '/Users/seung/WindData/'
     #Mac : OneDrive
-    '''
-    u = np.load('/Users/seung/Downloads/coarse/u_{ResolutionType}.npy')
-    v = np.load('/Users/seung/Downloads/coarse/v_{ResolutionType}.npy')
-    w = np.load('/Users/seung/Downloads/coarse/w_{ResolutionType}.npy')
+
+    u = np.load(f'{onedrive_path}/{ResolutionType}/u_{ResolutionType}.npy')
+    v = np.load(f'{onedrive_path}/{ResolutionType}/v_{ResolutionType}.npy')
+    w = np.load(f'{onedrive_path}/{ResolutionType}/w_{ResolutionType}.npy')
     '''
     #Windows
     u = np.load(f'{onedrive_path}u_{ResolutionType}.npy')
     v = np.load(f'{onedrive_path}v_{ResolutionType}.npy')
     w = np.load(f'{onedrive_path}w_{ResolutionType}.npy')
-    print(u.shape,v.shape,w.shape)
+    '''
+    #print(u.shape,v.shape,w.shape)
 
     bit = BITStar(x_start, x_goal, eta, iter_max,va,u,v,w)
     #bit.draw_things()
