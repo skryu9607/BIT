@@ -23,7 +23,7 @@ from winds import wind_catcher
 from env import Node,Edge,Tree,Obstacles,Thermals
 import utils
 import plotting
-from wind_model_v2 import WINDS, Thermals
+#from wind_model_v2 import WINDS, Thermals
 class BITStar:
     def __init__(self, x_start, x_goal, eta, iter_max,va,u,v,w):
         self.x_start = Node(x_start)
@@ -36,13 +36,13 @@ class BITStar:
         self.y_range = (-1000, 5000)
         self.z_range = (0, 4000)
 
-        self.fig = plt.figure(figsize=(15,12))
+        self.fig = plt.figure(figsize=(12,9))
         self.ax = self.fig.add_subplot(111,projection = '3d')
         
+        self.text = None
         '''
         Obstacles' shapes are assigned.
         '''
-
         self.Tree = Tree(self.x_start,self.x_goal)
         self.X_sample = set()
         # cost follow the tree
@@ -54,9 +54,9 @@ class BITStar:
         self.u = u
         self.v = v
         self.w = w
-        self.draw_things()
-        
-    ''' 
+        self.draw_things()  
+    '''
+    Wind fields are in the files such as u_coarse.npy...
     def WIND(self):
         # Ambient wind
         ambient_wind_speed = [1,0,0]
@@ -64,9 +64,8 @@ class BITStar:
         # Thermal
         thm1 = Thermals(zi = 1000, w_star = 0, xc = 3000, yc = 3000)
         
-        # Concatenation of each elements of wind vector
-    '''    
-
+        # Concatenation of each elements of wind vector 
+    '''
     def draw_things(self):
         # Adding obstacles
         xyz0 = [1000.,1000.,1000.]
