@@ -31,7 +31,7 @@ class RRTStar:
         self.x_start = Node(x_start)
         self.x_goal = Node(x_goal)
         # self.eta = eta                # eta 제거
-        self.gamma = step_len           # 한 스텝당 갈 수 있는 최대 거리 (step_len = gamma)
+        self.step_len = step_len           # 한 스텝당 갈 수 있는 최대 거리
         self.iter_max = iter_max        # 최대 iteration
         self.va = va                    # 순항 속도?
         self.delta = 10.0               # 자유 공간 정의를 위한 안전 여유
@@ -107,11 +107,11 @@ class RRTStar:
 
     '''PATH PLANNING : RRT*'''
     def planning(self):
-                 
+
         # Initialize for visualization
         self.ax.view_init(elev=60, azim=30)
-        self.ax.scatter(self.x_start.x,self.x_start.y,self.x_start.z,marker = 's' ,color = 'blue',s = 20)
-        self.ax.scatter(self.x_goal.x,self.x_goal.y,self.x_goal.z,marker = 'x' ,color = 'blue',s = 20)
+        self.ax.scatter(self.x_start.x,self.x_start.y,self.x_start.z,marker = 's' ,color = 'blue',s = 50)
+        self.ax.scatter(self.x_goal.x,self.x_goal.y,self.x_goal.z,marker = 'x' ,color = 'blue',s = 50)
         
         # Initialize for data storing
         file_path = "data.json"
@@ -131,31 +131,36 @@ class RRTStar:
         path_x = []
         path_y = []
         path_z = []
+        cnt = 0         # 노드의 총 개수
 
         for k in range(self.iter_max):
             
-            
             # 노드 랜덤 샘플링 (x_rand)
             x_rand = self.SampleRRT()
-
+            
             # Nearest 노드 찾기 (x_nearest)
             x_nearest = self.nearest(x_rand)
             
             # New 노드 생성 (x_new) (step_len 고려해서) (충돌이 없으면, parent = x_nearest, 충돌이 있으면 parent = None)
             x_new = self.make_new(x_nearest, x_rand)
             
-            if x_new.parent == None:                        # x_new.parent 가 None 이면, 다음 샘플링 루프로 넘김 (다시 샘플링)
+            if x_new.parent is None:                        # x_new.parent 가 None 이면, 다음 샘플링 루프로 넘김 (다시 샘플링)
                 continue
             
+            cnt +=1
+            print(f"Iteration {k} & No(nodes) {cnt}")
             self.Tree.V.add(x_new)                          # Tree에 x_new 추가
 
-            self.g_T[x_new] = self.g_estimated(x_nearest) + self.calc_dist(x_nearest, x_new)/self.va    # x_nearest를 통해 x_new 까지의 cost-to-come(g)
-
-            # 1. parent 재선정
+            # self.g_T[x_new] = self.g_estimated(x_nearest) + self.calc_dist(x_nearest, x_new)/self.va    # x_nearest를 통해 x_new 까지의 cost-to-come(g)
+            self.g_T[x_new] = self.g_T[x_nearest] + self.cost(x_nearest, x_new)
+            
+            # 1. x_new의 parent 재선정
             near_nodes = self.find_near_nodes(x_new)
             for x_near in near_nodes:
                 if self.collisionFree(x_near, x_new):   # x_near 부터 x_new 로의 경로 상에 충돌이 없는 경우 (feasible path 인 경우)
-                    g_near = self.g_estimated(x_near) + self.calc_dist(x_near,x_new)/self.va
+                    # g_near = self.g_estimated(x_near) + self.calc_dist(x_near,x_new)/self.va
+                    g_near = self.g_T[x_near] + self.cost(x_near,x_new)
+                    
                     if g_near < self.g_T[x_new]:
                         x_new.parent = x_near
                         self.g_T[x_new] = g_near
@@ -163,12 +168,11 @@ class RRTStar:
             # 2. Rewiring (기존 노드들의 parent 재선정)
             self.rewire(x_new, near_nodes)
             
-            # Tree Plot (매 iter 마다 plot 을 갱신하고 싶은데, 마지막에 한 번만 그려짐 ㅠㅠ)
-            self.plot_tree()
-
             # x_new 노드가 goal 노드 일정 반경 내에 들어오고, x_goal까지 feasible 하면
-            if self.calc_dist(x_new, self.x_goal) <= self.gamma and self.collisionFree(x_new, self.x_goal):
+            if self.calc_dist(x_new, self.x_goal) <= self.step_len and self.collisionFree(x_new, self.x_goal):
                 self.x_goal.parent = x_new
+                self.g_T[self.x_goal] = self.g_T[x_new] + self.cost(x_new,self.x_goal)
+                self.Tree.V.add(self.x_goal)
 
             # Goal 에 도달한 경우, Path 추출 및 반복문 종료
             if self.x_goal.parent is not None:
@@ -177,10 +181,16 @@ class RRTStar:
                 self.Flag = True                                # Success 여부
                 break
         
+        print('x_goal.parent ',self.x_goal.parent)
+
         if not self.Flag:
             print(f"Solution Not Found within {self.iter_max} iteration.")
         else:
             print(f"Solution Found in {k}th iteration!")
+            print(f"Path's cost : {self.g_T[self.x_goal]}")
+
+        # Tree Plot
+        self.plot_tree()
 
         # Data Storing
         data = {
@@ -198,17 +208,19 @@ class RRTStar:
 
         print(f"데이터 저장 완료")
 
-        # Plot
-        plt.title("Wind Aware Batch Informed Trees")
-        plt.xlabel("X")
-        plt.ylabel("Y")
-        # plt.zlabel("Z")
-        plt.plot(path_x, path_y, path_z , linewidth=2, color='r',linestyle ='--')
-        plt.show()
+        # Path Plot
+        if self.Flag:
+            # Plot
+            # self.ax.title("Wind Aware Batch Informed Trees")
+            # self.ax.xlabel("X")
+            # self.ax.ylabel("Y")
+            # plt.zlabel("Z")
+            self.ax.plot(path_x, path_y, path_z , linewidth=2, color='r',linestyle ='--')
+        plt.show()    
 
     ''' Tree 에서 node 와 가장 가까운 노드 (x_nearest) 찾기 '''
     def nearest(self, node):
-        min_dist = 1000000000
+        min_dist = np.inf
         for v in self.Tree.V:
             dist = self.calc_dist(node, v)
             if dist < min_dist:
@@ -217,6 +229,26 @@ class RRTStar:
         
         return x_nearest
     
+    ''' 새로운 노드 (x_new) 생성 '''
+    def make_new(self, x_nearest, x_rand):
+        distance = self.calc_dist(x_nearest, x_rand)
+        if distance > self.step_len:
+            direction = self.normalize(x_rand.xyz - x_nearest.xyz)
+            x_new = Node((x_nearest.x + direction[0] * self.step_len,
+                             x_nearest.y + direction[1] * self.step_len,
+                             x_nearest.z + direction[2] * self.step_len))
+            if self.collisionFree(x_nearest, x_new):          # 경로 상에 장애물과 충돌이 없으면, 부모 노드 추가
+                x_new.parent = x_nearest
+            else:
+                x_new.parent = None
+            return x_new
+        else:
+            if self.collisionFree(x_nearest, x_rand):
+                x_rand.parent = x_nearest
+            else:
+                x_rand.parent = None     
+            return x_rand
+
     ''' node 와 특정 반경 r 내에 위치한 가까운 노드들 반환 '''
     def find_near_nodes(self, node):
         near_nodes = set()
@@ -224,24 +256,18 @@ class RRTStar:
             dist = self.calc_dist(node, v)
             if dist < self.Tree.r:
                 near_nodes.add(v)
+        near_nodes.remove(node)     # 본인은 이웃노드에서 제외해야 함
         return near_nodes
-    
-    ''' 새로운 노드 (x_new) 생성 '''
-    def make_new(self, from_node, to_node):
-        distance = self.calc_dist(from_node, to_node)
-        if distance > self.gamma:
-            direction = self.normalize(to_node.xyz - from_node.xyz)
-            new_node = Node((from_node.x + direction[0] * self.gamma,
-                             from_node.y + direction[1] * self.gamma,
-                             from_node.z + direction[2] * self.gamma))
-            if self.collisionFree(from_node, to_node):          # 경로 상에 장애물과 충돌이 없으면, 부모 노드 추가
-                new_node.parent = from_node
-            return new_node
-        else:
-            if self.collisionFree(from_node, to_node):
-                to_node.parent = from_node
-            return to_node
 
+    ''' 기존 이웃노드들의 parent 노드 갱신 '''
+    def rewire(self, x_new, near_nodes):
+        for node in near_nodes:
+            # if self.collisionFree(x_new, node) and self.g_estimated(x_new) + self.calc_dist(x_new, node)/self.va < self.g_estimated(node):
+            if self.collisionFree(x_new, node) and self.g_T[x_new] + self.cost(x_new, node) < self.g_T[node]:
+                node.parent = x_new
+                # self.g_T[node] = self.g_estimated(x_new) + self.calc_dist(x_new, node)/self.va
+                self.g_T[node] = self.g_T[x_new] + self.cost(x_new, node)
+    
     ''' 두 노드 사이의 경로점들의 장애물 충돌 검사'''
     def collisionFree(self, from_node, to_node, n = 10):
         PNTs = self.interpolate_points(from_node,to_node,n)     # 경로의 각 점들
@@ -249,15 +275,7 @@ class RRTStar:
             if self.obs1.collide(PNTs[i]):                      # 장애물과 충돌 검사 (해당 점이 장애물 내에 속하는지 아닌지)
                 return False                                    # 하나라도 충돌하면 False (Collison free 하지 않다)
         return True                                             # 충돌이 없으면 True
-
-
-    ''' 기존 이웃노드들의 parent 노드 갱신 '''
-    def rewire(self, new_node, near_nodes):
-        for node in near_nodes:
-            if self.collisionFree(new_node, node) and self.g_estimated(new_node) + self.calc_dist(new_node, node)/self.va < self.g_estimated(node):
-                node.parent = new_node
-                self.g_T[node] = self.g_estimated(new_node) + self.calc_dist(new_node, node)/self.va
-
+    
     '''path 의 x,y,z 추출'''
     def ExtractPath(self):
         node = self.x_goal
@@ -336,7 +354,7 @@ class RRTStar:
         
         return v_tan_i
 
-    '''cost 생략 : RRT*에서 쓰이지 않음 (cost 정의 : 도달하는데 걸리는 시간)    
+    '''cost 정의 : 도달하는데 걸리는 시간 '''   
     def cost(self, start, end):
         L0 = self.calc_dist(start,end)                  # 두 점 사이의 직선 거리
         N = 20                                          # 분할 개수
@@ -352,7 +370,7 @@ class RRTStar:
             Cost += L0/N / (Velocity_Tan)
         #print("Cost is ",Cost)
         return Cost
-    '''
+    
 
     '''cost 계산을 위한 휴리스틱 : start 와 end 사이를 분할하여 장애물 충돌을 고려하고 탄젠셜 성분을 통해 cost 계산'''
     def heuristics(self, start, end, n = 5):
@@ -369,23 +387,26 @@ class RRTStar:
             
             return self.calc_dist(start,end)/best_case      # (가장 빨리) 걸리는 시간을 cost 로 반환 (근데 중간에 충돌이 발생해도 발생 안하는 경우만 고려하는데 이래도 되나?)
 
-    '''f_estimated, g_estimated, h_estimated 모두 Prune에서 사용되는 cost'''
-    '''f : total cost '''        
+    '''f_estimated, g_estimated, h_estimated 모두 Prune에서만 사용되는 cost'''
+    '''f_estimated 생략         
     def f_estimated(self, node):
         return self.g_estimated(node) + self.h_estimated(node)
+    '''
 
-    '''g : cost-to-come '''
+    '''g_estimated 생략 
     def g_estimated(self, node):
         if self.x_start == node:
             return 0
         return self.heuristics(self.x_start, node)
-    
-    '''h : cost-to-go '''
+    '''
+
+    '''h_estimated 생략 
     def h_estimated(self, node):
         if self.x_goal == node:
             return 0
         return self.heuristics(node,self.x_goal)
-    
+    '''
+
     ''' Sample 생략 : RRT*에서 쓰이지 않음 (랜덤 노드 샘플링 (자유 공간 vs Ellipsoid))
     def Sample(self, m, cMax, cMin, xCenter):
         if cMax < np.inf:
@@ -696,35 +717,53 @@ class RRTStar:
         self.ax.plot(px, py, pz, linestyle='--', color='darkorange', linewidth=0.25)
     '''   
 
+    ''' Tree Plot 함수 '''
     def plot_tree(self):
         # 트리의 각 노드의 부모를 따라 그리기
         for v in self.Tree.V:
             if v.parent is not None:  # 부모가 있을 때만
-                parent = v.parent
-                self.ax.scatter(v.x, v.y, v.z, marker = 'o' ,color = 'k',s = 5)
-                self.ax.plot([v.x, parent.x], [v.y, parent.y], [v.z, parent.z], 'g-')     
+                px, py, pz = v.parent.x, v.parent.y, v.parent.z
+                self.ax.scatter(v.x, v.y, v.z, marker = 'o' ,color = 'k', s=1)
+                self.ax.plot([v.x, px], [v.y, py], [v.z, pz], 'g-')     
 
-        # # 시작점과 목표점을 강조해서 그리기
-        # self.ax.scatter(self.x_start.x, self.x_start.y, self.x_start.z, color='r', s=100, label="Start")  # 빨간색 점
-        # self.ax.scatter(self.x_goal.x, self.x_goal.y, self.x_goal.z, color='g', s=100, label="Goal")    # 초록색 점
+    ''' Tree 완전성 체크 함수 : 모든 노드에 대해 부모 노드를 역추적하여 시작 노드에 도달하는지 확인'''
+    def check_tree_integrity(self):
+        
+        for node in self.Tree.V:
 
-    plt.legend()
+            current_node = node
+            path_trace = []
+            
+            while current_node.parent is not None:
+                path_trace.append(current_node)
+                current_node = current_node.parent
+            
+            # 시작 노드에 도달하지 못했다면 경고 출력
+            if current_node != self.x_start:
+                print(f"Node {node} does not connect to the start node. Issue found!")
+                print(f"Trace: {[str(n) for n in path_trace]}")
+                return False
+        
+        print("All nodes correctly connect to the start node.")
+        return True
+
 
 '''MAIN 실행 함수'''
 def main():
 
     # TODO : 
-    x_start = (0.0, 0.0, 10.0)  # Starting node
-    x_goal = (3000, 3000,3000)  # Goal node
+    x_start = (0.0, 0.0, 10.0)      # Starting node
+    x_goal = (3000, 3000, 3000)     # Goal node
+    # x_goal = (1000, 1000, 1000)     # Goal node
     print("Start point is ", x_start)
     print("Goal point is ", x_goal)
 
-    r = 100 # search radius
-    iter_max = 200 
+    r = 500 # search radius
+    iter_max = 5000
     va = 20 
     ResolutionType = 'normal'
 
-    step_len = 50
+    step_len = 300
     
     # Wind Data Path : 승걸
     # onedrive_path = '/Users/seung/WindData/'
@@ -747,6 +786,7 @@ def main():
     rrt = RRTStar(x_start, x_goal, r, step_len, iter_max, va, u, v, w)
     #bit.draw_things()
     rrt.planning()
+    rrt.check_tree_integrity()
 
     #bit = BITStar(x_start, x_goal, eta, iter_max)
     #bit.animation("Batch Informed Trees (BIT*)")
