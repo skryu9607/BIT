@@ -1,6 +1,6 @@
 """
 Batch Informed Trees (BIT*) with thermal updrafts
-@author : SeungKeol Ryu
+@author : SeungKeol Ryu, Minjo Jung
 """
 
 import os
@@ -24,8 +24,9 @@ from env import Node,Edge,Tree,Obstacles,Thermals
 import utils
 import plotting
 from wind_model_v2 import WINDS, Thermals
+
 class BITStar:
-    def __init__(self, x_start, x_goal, eta, iter_max,va,u,v,w):
+    def __init__(self, x_start, x_goal, eta, iter_max, va, u, v, w):
         self.x_start = Node(x_start)
         self.x_goal = Node(x_goal)
         self.eta = eta
@@ -35,9 +36,15 @@ class BITStar:
         self.x_range = (-1000, 5000)
         self.y_range = (-1000, 5000)
         self.z_range = (0, 4000)
-
+        
         self.fig = plt.figure(figsize=(15,12))
         self.ax = self.fig.add_subplot(111,projection = '3d')
+
+        self.ax.set_xlim([self.x_range[0], self.x_range[1]])
+        self.ax.set_ylim([self.y_range[0], self.y_range[1]])
+        self.ax.set_zlim([self.z_range[0], self.z_range[1]])
+
+        self.text = None
         
         '''
         Obstacles' shapes are assigned.
@@ -48,6 +55,7 @@ class BITStar:
         # cost follow the tree
         # calculated by the cost accumulation followed by a series of parent node.
         self.g_T =  dict() 
+        
         '''
         Wind Data
         '''
@@ -90,21 +98,21 @@ class BITStar:
         xCenter = np.array([[(self.x_start.x + self.x_goal.x) / 2.0],
                             [(self.x_start.y + self.x_goal.y) / 2.0],
                             [(self.x_start.z + self.x_goal.z) / 2.0]])
-        # Rotation matrix C.
+        # Rotation matrix C
         self.C = self.RotationToWorldFrame(self.x_start, self.x_goal, distMin)
         print("Rotation Matrix is",self.C)
         return cMin,xCenter
     
     def planning(self):
-        cMin,xCenter = self.prepare()
+        cMin, xCenter = self.prepare()
         #if self.Tree.QV is None:
             #print()
         cost_past = np.inf
         #self.fig = plt.figure(figsize = (15,12))
         #self.ax = self.fig.add_subplot(111,projection = '3d')
         self.ax.view_init(elev=60, azim=30)
-        self.ax.scatter(self.x_start.x,self.x_start.y,self.x_start.z,marker = 'd' ,color = 'blue',s = 1)
-        self.ax.scatter(self.x_goal.x,self.x_goal.y,self.x_goal.z,marker = 's' ,color = 'blue',s = 1)
+        self.ax.scatter(self.x_start.x,self.x_start.y,self.x_start.z,marker = 's' ,color = 'blue',s = 20)
+        self.ax.scatter(self.x_goal.x,self.x_goal.y,self.x_goal.z,marker = 'x' ,color = 'blue',s = 20)
         file_path = "data.json"
 
         # 기존 JSON 파일이 존재하는지 확인
@@ -120,12 +128,17 @@ class BITStar:
         else:
             data_list = []
 
+        path_x = None
+        path_y = None
+        path_z = None
+
         self.flagF = True
-        max_iterations = 1000
-        for k in range(max_iterations):
+        # max_iterations = 1000
+        # for k in range(max_iterations):
+        for k in range(self.iter_max):
             # Batch Creation
             if not self.Tree.QE and not self.Tree.QV:
-                if self.flagF:
+                if self.flagF: 
                     m =  100 * 3
                     print("Sampling in FreeSpace \n")
                 else:
@@ -137,7 +150,7 @@ class BITStar:
                     path_x, path_y, path_z = self.ExtractPath()
                     cost_current = self.g_T[self.x_goal]
                     if cost_past == cost_current:
-                        print("Can't be improved")
+                        print("Can't be improved! & WA-BIT is over!")
                         break
                     cost_past = cost_current
                     print("Solution Found")
@@ -146,7 +159,7 @@ class BITStar:
                     plt.ylabel("Y")
                     #plt.zlabel("Z")
                     #plt.zlabel("Z")
-                    plt.plot(path_x, path_y, path_z , linewidth=2, color='r',linestyle ='--')
+                    plt.plot(path_x, path_y, path_z , linewidth=2, color='m',linestyle ='--')
                     plt.pause(0.001)
                     plt.savefig(f'{k} th iteration.png')
                     self.FlagTransparent = True
@@ -259,11 +272,12 @@ class BITStar:
                 print("cMax is ", self.g_T[self.x_goal],"cMin is ",cMin)
                 print("The number of self.Tree.V_old is",len(self.Tree.V_old))
                 print("The number of self.Tree.V is",len(self.Tree.V))
-                self.animation(xCenter, self.g_T[self.x_goal], cMin)
+                print("The number of self.X_sample is",len(self.X_sample))
+                self.animation(xCenter, self.g_T[self.x_goal], cMin, path_x, path_y, path_z)
         
         # Found the path
         path_x, path_y, path_z = self.ExtractPath()
-        self.ax.plot(path_x, path_y, path_z, linewidth=2, color='r',linestyle ='--')
+        self.ax.plot(path_x, path_y, path_z, linewidth=2, color='m',linestyle ='--')
         plt.pause(0.001)
         plt.show()
 
@@ -279,16 +293,22 @@ class BITStar:
         return path_x, path_y, path_z
 
     def Prune(self, cBest):
+        # 샘플 Pruning : 기존 샘플들 중에 cBest 보다 큰 비용의 샘플들은 제거
         self.X_sample = {x for x in self.X_sample if self.f_estimated(x) < cBest}
+        # 노드 Pruning : 기존 트리의 노드들 중에 cBest 보다 큰 비용의 노드들은 제거
         self.Tree.V = {v for v in self.Tree.V if self.f_estimated(v) <= cBest}
+        # 승걸이형이 추가한 부분 : 이유는 모르겠음!
         if len(self.Tree.V) == 0:
             print("The first stage of prune")
             print("The current cBest is ",cBest)
             for v in self.Tree.V:
                 print(self.f_estimated(v))
+        # 엣지 Pruning : 엣지 양단의 노드 v, w의 비용이 cBest 이상인 엣지들은 제거
         self.Tree.E = {(v, w) for v, w in self.Tree.E
                        if self.f_estimated(v) <= cBest and self.f_estimated(w) <= cBest}
+        # g_T가 무한대인 노드 = 아직 탐색되지 않은 노드 = 샘플로 추가
         self.X_sample.update({v for v in self.Tree.V if self.g_T[v] == np.inf})
+        # 노드 Pruning = 트리에는 g_T가 무한대가 아닌 노드(탐색된 노드)들만 남긴다.
         self.Tree.V = {v for v in self.Tree.V if self.g_T[v] < np.inf}
         if len(self.Tree.V) == 0:
             print("The second stage of prune")
@@ -299,6 +319,7 @@ class BITStar:
         #print(wind)
         return wind_at_node
         #return [0.,0.,0.]
+    '''
     def interpolate_points(start, end, num_points):
         points = []
         # num_points at least two
@@ -310,7 +331,7 @@ class BITStar:
             points.append([x, y, z])
             
         return points
-
+    '''
     def getting_tangential(self, pos, displacement_dir):
         '''
         wind_dir = self.normalize(self.wind(pos))
@@ -515,7 +536,7 @@ class BITStar:
 
         e_value = {(v, x): self.g_T[v] + self.calc_dist(v, x)/self.va + self.h_estimated(x)
                    for v, x in self.Tree.QE}
- 
+
         return min(e_value, key=e_value.get)
 
     @staticmethod
@@ -524,12 +545,14 @@ class BITStar:
             x, y, z = random.uniform(-1, 1), random.uniform(-1, 1), random.uniform(-1,1)
             if x ** 2 + y ** 2 + z ** 2 < 1:
                 return np.array([[x], [y], [z]]).T
+    
     @staticmethod
     def arcsin_0_pi(x):
         arcsin_value = np.arcsin(x)
         if arcsin_value < 0:
             return arcsin_value + np.pi
         return arcsin_value        
+    
     @staticmethod
     # estimation part should be changed. Not only distance but also energy cost.
     def interpolate_points(point1, point2, num_points):
@@ -548,8 +571,8 @@ class BITStar:
         # L means cMin.
         # 
         dst = np.array([[(x_goal.x - x_start.x) / L],
-                       [(x_goal.y - x_start.y) / L], 
-                       [(x_goal.z - x_start.z) / L]])
+                        [(x_goal.y - x_start.y) / L], 
+                        [(x_goal.z - x_start.z) / L]])
         src = np.array([[1.0], [0.0], [0.0]])
         # @ : matrix multiplication using the "@" operator in Numpy.
         M = np.outer(dst,src)
@@ -572,12 +595,25 @@ class BITStar:
         dz = node_end.z - node_start.z
         return math.hypot(dx, dy), math.atan2(dy, dx)
 
-    def animation(self, xCenter, cMax, cMin):
+    def animation(self, xCenter, cMax, cMin, path_x, path_y, path_z):
         #self.fig = plt.figure()
         #self.ax = self.fig.add_subplot(111,projection='3d')
         # axis(축) 내용을 지우는 함수이다. 이 함수를 호출하면 현재 플롯의 모든 데이터, 레이블, 타이틀 등이 지워진다. 
         #plt.cla()
         #self.plot_grid("Batch Informed Trees (BIT*)")
+
+        self.ax.cla()
+
+        self.ax.set_xlim([self.x_range[0], self.x_range[1]])
+        self.ax.set_ylim([self.y_range[0], self.y_range[1]])
+        self.ax.set_zlim([self.z_range[0], self.z_range[1]])
+
+        self.ax.scatter(self.x_start.x,self.x_start.y,self.x_start.z,marker = 's' ,color = 'blue',s = 20)
+        self.ax.scatter(self.x_goal.x,self.x_goal.y,self.x_goal.z,marker = 'x' ,color = 'blue',s = 20)
+
+        if path_x is not None:
+            self.ax.plot(path_x, path_y, path_z , linewidth=2, color='r',linestyle ='--')
+
         if self.text is None:
                 self.text = self.ax.text2D(0.05, 0.95, "", fontsize=15, transform=self.ax.transAxes, verticalalignment='top')
 
@@ -599,10 +635,12 @@ class BITStar:
 
             for v, w in self.Tree.E:
                 self.ax.plot([v.x, w.x], [v.y, w.y], [v.z, w.z],'-g',linewidth = 2, alpha = 0.5)
+            
             path_cost = self.g_T[self.x_goal]
             path_text = f"Cost: {path_cost}"
             self.text.set_text(path_text)
-            #self.ax.text2D(0.05, 0.95, path_text, fontsize=15, transform=self.ax.transAxes, verticalalignment='top')
+            self.ax.text2D(0.05, 0.95, path_text, fontsize=15, transform=self.ax.transAxes, verticalalignment='top')
+            
             plt.title("Wind Aware Batch Informed Trees")
             plt.xlabel("X")
             plt.ylabel("Y")
@@ -614,7 +652,7 @@ class BITStar:
             self.fig.savefig("error_figure.png")
             raise
         
-    def plot_grid(self, name):
+    def plot_grid(self, name):  # 현재 사용 X
         '''
         for (ox, oy, w, h) in self.obs_boundary:
             self.ax.add_patch(
@@ -714,33 +752,41 @@ class BITStar:
         '''
 
 def main():
+
     # TODO : 
     x_start = (0.0, 0.0, 10.0)  # Starting node
     x_goal = (3000, 3000,3000)  # Goal node
     print("Start point is ", x_start)
     print("Goal point is ", x_goal)
     eta = 2 * 1 * 20 # radius 조절 parameter
-    iter_max = 200 
+    iter_max = 1000 
     va = 20 
     ResolutionType = 'normal'
-    onedrive_path = '/Users/seung/WindData/'
+    
+    # Wind Data Path : 승걸
+    # onedrive_path = '/Users/seung/WindData/'
+    # Wind Data Path : 민조
+    onedrive_path = 'C:/Users/LiCS/Documents/MJ/KAIST/Paper/2025 ACC/Code/windData/'
+    
     #Mac : OneDrive
-
+    '''
     u = np.load(f'{onedrive_path}/{ResolutionType}/u_{ResolutionType}.npy')
     v = np.load(f'{onedrive_path}/{ResolutionType}/v_{ResolutionType}.npy')
     w = np.load(f'{onedrive_path}/{ResolutionType}/w_{ResolutionType}.npy')
     '''
+    
     #Windows
     u = np.load(f'{onedrive_path}u_{ResolutionType}.npy')
     v = np.load(f'{onedrive_path}v_{ResolutionType}.npy')
     w = np.load(f'{onedrive_path}w_{ResolutionType}.npy')
-    '''
-    #print(u.shape,v.shape,w.shape)
 
-    bit = BITStar(x_start, x_goal, eta, iter_max,va,u,v,w)
+    #print(u.shape,v.shape,w.shape)
+    
+    print("start!!!")
+    bit = BITStar(x_start, x_goal, eta, iter_max, va, u, v, w)
     #bit.draw_things()
     bit.planning()
-    print("start!!!")
+    
     #bit = BITStar(x_start, x_goal, eta, iter_max)
     #bit.animation("Batch Informed Trees (BIT*)")
     
