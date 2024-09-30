@@ -69,7 +69,7 @@ class BITStar:
     def draw_things(self):
         # Adding obstacles
         xyz0 = [1000.,1000.,1000.]
-        abc = np.array([200.,200.,200.])
+        abc = np.array([500.,500.,500.])
         shape = np.array([1.,1.,2.])
         self.obs1 = Obstacles(xyz0,abc,shape,self.x_range,self.y_range,self.z_range)
         self.obs1.draw(self.ax)

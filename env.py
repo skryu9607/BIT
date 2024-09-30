@@ -116,6 +116,7 @@ class Obstacles:
         ax.set_zlabel('Z')
         ax.set_box_aspect((np.ptp(interval[0:2]), np.ptp(interval[2:4]), np.ptp(interval[4:6])))  # 축 비율 조정(axis equal)
         ax.auto_scale_xyz([self.x_range[0],self.x_range[1]], [self.y_range[0],self.y_range[1]], [self.z_range[0],self.z_range[1]])
+    
     def collide(self,pos):
         if self.map(pos) < 0:
             return True
