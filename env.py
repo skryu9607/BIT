@@ -70,7 +70,7 @@ class Obstacles:
         self.F = np.sum(np.power(base, exponent)) - 1
         return self.F
 
-    def draw(self,ax_obstacle):
+    def draw(self,ax_obstacle,x_start,x_goal):
         ''' Drawing the obstacles' edges '''
         # 음함수 방정식 정의
         def f(x, y, z, xyz0, abc, shape):
@@ -104,21 +104,16 @@ class Obstacles:
         verts += self.xyz0 - center
         center_new = (np.max(verts, axis=0) + np.min(verts, axis=0)) / 2
         print(center_new)
-        # z_max 값을 가지는 정점의 인덱스를 찾기
+        # check validity
         z_max_index = np.argmax(verts[:, 2])
-        # z_max일 때의 전체 좌표 (x, y, z)
         verts_at_z_max = verts[z_max_index]
         print("Z 방향으로 가장 높은 값을 가지는 좌표:", verts_at_z_max)
-        # z_max 값을 가지는 정점의 인덱스를 찾기
         z_min_index = np.argmin(verts[:, 2])
-        # z_max일 때의 전체 좌표 (x, y, z)
         verts_at_z_min = verts[z_min_index]
         print("Z 방향으로 가장 낮은 값을 가지는 좌표:", verts_at_z_min)
         mesh = Poly3DCollection(verts[faces], alpha=0.8, edgecolor='black', facecolor='green')
         ax_obstacle.add_collection3d(mesh)
         
-        # 축 설정 및 표시
-        # 축 설정 및 표시
         # ax_obstacle.set_xlim([np.min(verts[:, 0]), np.max(verts[:, 0])])
         # ax_obstacle.set_ylim([np.min(verts[:, 1]), np.max(verts[:, 1])])
         # ax_obstacle.set_zlim([np.min(verts[:, 2]), np.max(verts[:, 2])])
@@ -128,7 +123,10 @@ class Obstacles:
         ax_obstacle.set_zlabel('Z')
         ax_obstacle.set_box_aspect((np.ptp(interval[0:2]), np.ptp(interval[2:4]), np.ptp(interval[4:6])))  # 축 비율 조정(axis equal)
         ax_obstacle.auto_scale_xyz([self.x_range[0],self.x_range[1]], [self.y_range[0],self.y_range[1]], [self.z_range[0],self.z_range[1]])
-        ax_obstacle.plot([verts_at_z_max[0]], [verts_at_z_max[1]], [verts_at_z_max[2]], marker='o', color='red', markersize=10)
+        ax_obstacle.plot([verts_at_z_max[0]], [verts_at_z_max[1]], [verts_at_z_max[2]], marker='o', color='red', markersize=4)
+        ax_obstacle.plot(x_start.x, x_start.y,x_start.z, marker='s', color='blue', markersize=4)
+        ax_obstacle.plot(x_goal.x,x_goal.y,x_goal.z, marker='x', color='blue', markersize=4)
+        
     def collide(self,pos):
         if self.map(pos) < 0:
             return True

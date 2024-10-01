@@ -82,13 +82,13 @@ class BITStar:
         xyz0 = [1000.,1000.,1000.]
         abc = np.array([500,500,500])
         shape = np.array([1.,1.,2.])
-        self.obs1 = Obstacles([1000.,1000.,1500.],np.array([800,800,800]),shape,self.x_range,self.y_range,self.z_range)
+        self.obs1 = Obstacles(xyz0,abc,shape,self.x_range,self.y_range,self.z_range)
        
         # 축 설정
         self.ax_obstacle.set_xlim([self.x_range[0], self.x_range[1]])
         self.ax_obstacle.set_ylim([self.y_range[0], self.y_range[1]])
         self.ax_obstacle.set_zlim([self.z_range[0], self.z_range[1]])
-        self.obs1.draw(self.ax_obstacle)
+        self.obs1.draw(self.ax_obstacle,self.x_start,self.x_goal)
     def prepare(self):
         self.Tree.V.add(self.x_start)
         self.X_sample.add(self.x_goal)
