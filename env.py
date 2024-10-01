@@ -70,7 +70,7 @@ class Obstacles:
         self.F = np.sum(np.power(base, exponent)) - 1
         return self.F
 
-    def draw(self, ax):
+    def draw(self,ax_obstacle):
         ''' Drawing the obstacles' edges '''
         # 음함수 방정식 정의
         def f(x, y, z, xyz0, abc, shape):
@@ -78,9 +78,8 @@ class Obstacles:
             a, b, c = abc
             d, e, f = shape
             return ((x-x0)/a)**(2*d) + ((y-y0)/b)**(2*e) + ((z-z0)/c)**(2*f) - 1
-
         # 플롯 범위 설정
-  
+
         x_max, x_min = self.xyz0[0] + self.abc[0], self.xyz0[0] - self.abc[0]
         y_max, y_min = self.xyz0[1] + self.abc[1], self.xyz0[1] - self.abc[1]
         z_max, z_min = self.xyz0[2] + self.abc[2], self.xyz0[2] - self.abc[2]
@@ -89,34 +88,47 @@ class Obstacles:
         y_max,y_min = self.y_range[1],self.y_range[0]
         z_max,z_min = self.z_range[1],self.z_range[0]
         '''
-        gap = 5
-        
+        gap = 5  # 간격을 더 크게 설정
         interval = [x_min - gap, x_max + gap, y_min - gap, y_max + gap, z_min - gap, z_max + gap]
-        print(interval)
-        # 3D 좌표 격자 생성 (20개)
-        x, y, z = np.mgrid[interval[0]:interval[1]:20j, interval[2]:interval[3]:20j, interval[4]:interval[5]:20j]
 
+        # 3D 좌표 격자 생성 (50개로 분해능 증가)
+        x, y, z = np.mgrid[interval[0]:interval[1]:50j, interval[2]:interval[3]:50j, interval[4]:interval[5]:50j]
         # Marching Cubes 알고리즘으로 곡면 추출
-        verts, faces, normals, values = measure.marching_cubes(f(x, y, z, self.xyz0, self.abc, self.shape), 0)
+        verts, faces, normals, values = measure.marching_cubes(f(x, y, z, self.xyz0, self.abc, self.shape), level=0,
+            spacing=(self.abc[0]/50, self.abc[1]/50, self.abc[2]/50),
+            step_size=1)
 
-        # 곡면 중심 계산
+        # 곡면 중심 계산 후 평행 이동
         center = (np.max(verts, axis=0) + np.min(verts, axis=0)) / 2
-
-        # 곡면 데이터 평행 이동 
-        verts -= center           # mesh에 맞춰 우선 원점으로 정렬
-        verts += self.xyz0        # obstacle center에 맞게 평행이동
-
-        # 삼각형 메쉬 플롯
+        print(center)
+        verts += self.xyz0 - center
+        center_new = (np.max(verts, axis=0) + np.min(verts, axis=0)) / 2
+        print(center_new)
+        # z_max 값을 가지는 정점의 인덱스를 찾기
+        z_max_index = np.argmax(verts[:, 2])
+        # z_max일 때의 전체 좌표 (x, y, z)
+        verts_at_z_max = verts[z_max_index]
+        print("Z 방향으로 가장 높은 값을 가지는 좌표:", verts_at_z_max)
+        # z_max 값을 가지는 정점의 인덱스를 찾기
+        z_min_index = np.argmin(verts[:, 2])
+        # z_max일 때의 전체 좌표 (x, y, z)
+        verts_at_z_min = verts[z_min_index]
+        print("Z 방향으로 가장 낮은 값을 가지는 좌표:", verts_at_z_min)
         mesh = Poly3DCollection(verts[faces], alpha=0.8, edgecolor='black', facecolor='green')
-        ax.add_collection3d(mesh)
+        ax_obstacle.add_collection3d(mesh)
         
         # 축 설정 및 표시
-        ax.set_xlabel('X')
-        ax.set_ylabel('Y')
-        ax.set_zlabel('Z')
-        ax.set_box_aspect((np.ptp(interval[0:2]), np.ptp(interval[2:4]), np.ptp(interval[4:6])))  # 축 비율 조정(axis equal)
-        ax.auto_scale_xyz([self.x_range[0],self.x_range[1]], [self.y_range[0],self.y_range[1]], [self.z_range[0],self.z_range[1]])
-    
+        # 축 설정 및 표시
+        # ax_obstacle.set_xlim([np.min(verts[:, 0]), np.max(verts[:, 0])])
+        # ax_obstacle.set_ylim([np.min(verts[:, 1]), np.max(verts[:, 1])])
+        # ax_obstacle.set_zlim([np.min(verts[:, 2]), np.max(verts[:, 2])])
+        ax_obstacle.view_init(elev=10, azim=-85)
+        ax_obstacle.set_xlabel('X')
+        ax_obstacle.set_ylabel('Y')
+        ax_obstacle.set_zlabel('Z')
+        ax_obstacle.set_box_aspect((np.ptp(interval[0:2]), np.ptp(interval[2:4]), np.ptp(interval[4:6])))  # 축 비율 조정(axis equal)
+        ax_obstacle.auto_scale_xyz([self.x_range[0],self.x_range[1]], [self.y_range[0],self.y_range[1]], [self.z_range[0],self.z_range[1]])
+        ax_obstacle.plot([verts_at_z_max[0]], [verts_at_z_max[1]], [verts_at_z_max[2]], marker='o', color='red', markersize=10)
     def collide(self,pos):
         if self.map(pos) < 0:
             return True

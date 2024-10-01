@@ -37,15 +37,17 @@ class BITStar:
         self.y_range = (-1000, 5000)
         self.z_range = (0, 4000)
 
-        self.fig = plt.figure(figsize=(15,12))
+        self.fig_obstacle = plt.figure(figsize=(12, 9))  # 새로운 figure 생성
+        self.ax_obstacle = self.fig_obstacle.add_subplot(111, projection='3d')  # 새로운 3D 축 추가
+    
+        self.fig = plt.figure(figsize=(12,9))
         self.ax = self.fig.add_subplot(111,projection = '3d')
+        
 
         self.ax.set_xlim([self.x_range[0], self.x_range[1]])
         self.ax.set_ylim([self.y_range[0], self.y_range[1]])
         self.ax.set_zlim([self.z_range[0], self.z_range[1]])
 
-        self.text = None
-        
         self.text = None
         '''
         Obstacles' shapes are assigned.
@@ -75,13 +77,18 @@ class BITStar:
         # Concatenation of each elements of wind vector 
     '''
     def draw_things(self):
+
         # Adding obstacles
         xyz0 = [1000.,1000.,1000.]
-        abc = np.array([500.,500.,500.])
+        abc = np.array([500,500,500])
         shape = np.array([1.,1.,2.])
-        self.obs1 = Obstacles(xyz0,abc,shape,self.x_range,self.y_range,self.z_range)
-        self.obs1.draw(self.ax)
-
+        self.obs1 = Obstacles([1000.,1000.,1500.],np.array([800,800,800]),shape,self.x_range,self.y_range,self.z_range)
+       
+        # 축 설정
+        self.ax_obstacle.set_xlim([self.x_range[0], self.x_range[1]])
+        self.ax_obstacle.set_ylim([self.y_range[0], self.y_range[1]])
+        self.ax_obstacle.set_zlim([self.z_range[0], self.z_range[1]])
+        self.obs1.draw(self.ax_obstacle)
     def prepare(self):
         self.Tree.V.add(self.x_start)
         self.X_sample.add(self.x_goal)
@@ -109,7 +116,7 @@ class BITStar:
         cost_past = np.inf
         #self.fig = plt.figure(figsize = (15,12))
         #self.ax = self.fig.add_subplot(111,projection = '3d')
-        self.ax.view_init(elev=60, azim=30)
+        self.ax.view_init(elev=20, azim=-85)
         self.ax.scatter(self.x_start.x,self.x_start.y,self.x_start.z,marker = 's' ,color = 'blue',s = 20)
         self.ax.scatter(self.x_goal.x,self.x_goal.y,self.x_goal.z,marker = 'x' ,color = 'blue',s = 20)
         file_path = "data.json"
@@ -138,11 +145,11 @@ class BITStar:
             # Batch Creation
             if not self.Tree.QE and not self.Tree.QV:
                 if self.flagF: 
-                    m =  100 * 3
+                    m =  100 * 10
                     print("Sampling in FreeSpace \n")
                 else:
                     print("Sampling in Ellipsoid \n")
-                    m = 100 * 1.5
+                    m = 100 * 5
                 # Reach goal points
                 if self.x_goal.parent is not None:
                     self.flagF = False
@@ -763,22 +770,22 @@ def main():
     ResolutionType = 'normal'
     
     # Wind Data Path : 승걸
-    # onedrive_path = '/Users/seung/WindData/'
+    onedrive_path = '/Users/seung/WindData/'
     # Wind Data Path : 민조
-    onedrive_path = 'C:/Users/LiCS/Documents/MJ/KAIST/Paper/2025 ACC/Code/windData/'
+    #onedrive_path = 'C:/Users/LiCS/Documents/MJ/KAIST/Paper/2025 ACC/Code/windData/'
     
     #Mac : OneDrive
-    '''
     u = np.load(f'{onedrive_path}/{ResolutionType}/u_{ResolutionType}.npy')
     v = np.load(f'{onedrive_path}/{ResolutionType}/v_{ResolutionType}.npy')
     w = np.load(f'{onedrive_path}/{ResolutionType}/w_{ResolutionType}.npy')
-    '''
+
     
     #Windows
+    '''
     u = np.load(f'{onedrive_path}u_{ResolutionType}.npy')
     v = np.load(f'{onedrive_path}v_{ResolutionType}.npy')
     w = np.load(f'{onedrive_path}w_{ResolutionType}.npy')
-
+'''
     #print(u.shape,v.shape,w.shape)
     
     print("start!!!")
