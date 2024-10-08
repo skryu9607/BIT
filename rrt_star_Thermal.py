@@ -53,7 +53,7 @@ class RRTStar:
         '''
         Visualization Setup
         '''
-        self.fig = plt.figure(figsize=(15,12))
+        self.fig = plt.figure(figsize=(12,9))
         self.ax = self.fig.add_subplot(111,projection = '3d')
         self.text = None
 
@@ -76,7 +76,7 @@ class RRTStar:
         abc = np.array([600.,600.,600.])
         shape = np.array([1.,1.,2.])
         self.obs1 = Obstacles(xyz0,abc,shape,self.x_range,self.y_range,self.z_range)
-        self.obs1.draw(self.ax,self.x_start,self.x_goal)
+        #self.obs1.draw(self.ax,self.x_start,self.x_goal)
         
     '''PATH PLANNING : RRT*'''
     def planning(self):
@@ -87,7 +87,7 @@ class RRTStar:
         self.ax.scatter(self.x_goal.x,self.x_goal.y,self.x_goal.z,marker = 'x' ,color = 'blue',s = 50)
         
         # Initialize for data storing
-        file_path = "data.json"
+        file_path = "data_rrt.json"
         if os.path.exists(file_path):   # 기존 JSON 파일이 존재하는지 확인
             with open(file_path, "r", encoding="utf-8") as file:
                 try:

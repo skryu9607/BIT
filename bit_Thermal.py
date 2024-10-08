@@ -112,7 +112,7 @@ class BITStar:
     
     def planning(self):
         cMin, xCenter = self.prepare()
-        cost_past = np.inf
+        cost_past = 10000
         #self.fig = plt.figure(figsize = (15,12))
         #self.ax = self.fig.add_subplot(111,projection = '3d')
         self.ax.view_init(elev=20, azim=-85)
@@ -140,7 +140,10 @@ class BITStar:
         self.flagF = True
         # max_iterations = 1000
         # for k in range(max_iterations):
-        for k in range(self.iter_max):
+        flag_continue = True
+        k = 0
+        while ( k < self.iter_max and flag_continue):
+        #for k in range(self.iter_max):
             # Batch Creation
             if not self.Tree.QE and not self.Tree.QV:
                 if self.flagF: 
@@ -156,8 +159,9 @@ class BITStar:
                     cost_current = self.g_T[self.x_goal]
                     if cost_past == cost_current:
                         print("Can't be improved! & WA-BIT is over!")
-                        break
-                    cost_past = cost_current
+                        flag_continue = False
+                    else:
+                        cost_past = cost_current
                     print("Solution Found")
                     plt.title("Wind Aware Batch Informed Trees")
                     plt.xlabel("X")
@@ -279,13 +283,15 @@ class BITStar:
                 print("The number of self.Tree.V is",len(self.Tree.V))
                 print("The number of self.X_sample is",len(self.X_sample))
                 self.animation(xCenter, self.g_T[self.x_goal], cMin, path_x, path_y, path_z)
+            k = k + 1
         
         # Found the path
         path_x, path_y, path_z = self.ExtractPath()
         self.ax.plot(path_x, path_y, path_z, linewidth=2, color='m',linestyle ='--')
         plt.pause(0.001)
         plt.show()
-
+        return path_x, path_y, path_z
+    
     def ExtractPath(self):
         node = self.x_goal
         path_x, path_y, path_z = [node.x], [node.y] ,[node.z]
@@ -302,7 +308,6 @@ class BITStar:
         self.X_sample = {x for x in self.X_sample if self.f_estimated(x) < cBest}
         # 노드 Pruning : 기존 트리의 노드들 중에 cBest 보다 큰 비용의 노드들은 제거
         self.Tree.V = {v for v in self.Tree.V if self.f_estimated(v) <= cBest}
-        # 승걸이형이 추가한 부분 : 이유는 모르겠음!
         if len(self.Tree.V) == 0:
             print("The first stage of prune")
             print("The current cBest is ",cBest)
@@ -790,7 +795,7 @@ def main():
     print("start!!!")
     bit = BITStar(x_start, x_goal, eta, iter_max, va, u, v, w)
     #bit.draw_things()
-    bit.planning()
+    PATH = bit.planning()
     
     #bit = BITStar(x_start, x_goal, eta, iter_max)
     #bit.animation("Batch Informed Trees (BIT*)")
