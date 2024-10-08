@@ -20,14 +20,14 @@ from winds import wind_catcher
 #                "/../../Sampling_based_Planning/")
 
 #from Sampling_based_Planning.rrt_2D import env, plotting, utils
-from env import Node,Edge,Tree,Obstacles,Thermals
+from env import Node,Edge,Tree,Obstacle,Thermals,Map
 import utils
 import plotting
 from wind_model_v2 import WINDS, Thermals
-
+from viewer import VIEWER
 
 class BITStar:
-    def __init__(self, x_start, x_goal, eta, iter_max, va, u, v, w):
+    def __init__(self, x_start, x_goal, eta, iter_max, va, u, v, w, map):
         self.x_start = Node(x_start)
         self.x_goal = Node(x_goal)
         self.eta = eta
@@ -37,22 +37,21 @@ class BITStar:
         self.x_range = (-1000, 5000)
         self.y_range = (-1000, 5000)
         self.z_range = (0, 4000)
-
-        self.fig_obstacle = plt.figure(figsize=(12, 9))  # 새로운 figure 생성
-        self.ax_obstacle = self.fig_obstacle.add_subplot(111, projection='3d')  # 새로운 3D 축 추가
-    
-        self.fig = plt.figure(figsize=(12,9))
-        self.ax = self.fig.add_subplot(111,projection = '3d')
         
+        self.fig = plt.figure(figsize=(15,12))
+        self.ax = self.fig.add_subplot(111,projection = '3d')
 
         self.ax.set_xlim([self.x_range[0], self.x_range[1]])
         self.ax.set_ylim([self.y_range[0], self.y_range[1]])
         self.ax.set_zlim([self.z_range[0], self.z_range[1]])
 
         self.text = None
+        
         '''
         Obstacles' shapes are assigned.
         '''
+        self.obs_list = map.obs
+
         self.Tree = Tree(self.x_start,self.x_goal)
         self.X_sample = set()
         # cost follow the tree
@@ -65,9 +64,15 @@ class BITStar:
         self.u = u
         self.v = v
         self.w = w
-        self.draw_things()  
-    '''
-    Wind fields are in the files such as u_coarse.npy...
+        
+        '''
+        Final
+        '''
+        self.path_x = None
+        self.path_y = None
+        self.path_z = None
+
+    ''' 
     def WIND(self):
         # Ambient wind
         ambient_wind_speed = [1,0,0]
@@ -75,21 +80,9 @@ class BITStar:
         # Thermal
         thm1 = Thermals(zi = 1000, w_star = 0, xc = 3000, yc = 3000)
         
-        # Concatenation of each elements of wind vector 
-    '''
-    def draw_things(self):
+        # Concatenation of each elements of wind vector
+    ''' 
 
-        # Adding obstacles
-        xyz0 = [1000.,1000.,1000.]
-        abc = np.array([500,500,500])
-        shape = np.array([1.,1.,2.])
-        self.obs1 = Obstacles(xyz0,abc,shape,self.x_range,self.y_range,self.z_range)
-       
-        # 축 설정
-        self.ax_obstacle.set_xlim([self.x_range[0], self.x_range[1]])
-        self.ax_obstacle.set_ylim([self.y_range[0], self.y_range[1]])
-        self.ax_obstacle.set_zlim([self.z_range[0], self.z_range[1]])
-        self.obs1.draw(self.ax_obstacle,self.x_start,self.x_goal)
     def prepare(self):
         self.Tree.V.add(self.x_start)
         self.X_sample.add(self.x_goal)
@@ -115,7 +108,7 @@ class BITStar:
         cost_past = 10000
         #self.fig = plt.figure(figsize = (15,12))
         #self.ax = self.fig.add_subplot(111,projection = '3d')
-        self.ax.view_init(elev=20, azim=-85)
+        self.ax.view_init(elev=60, azim=30)
         self.ax.scatter(self.x_start.x,self.x_start.y,self.x_start.z,marker = 's' ,color = 'blue',s = 20)
         self.ax.scatter(self.x_goal.x,self.x_goal.y,self.x_goal.z,marker = 'x' ,color = 'blue',s = 20)
         file_path = "data.json"
@@ -147,11 +140,11 @@ class BITStar:
             # Batch Creation
             if not self.Tree.QE and not self.Tree.QV:
                 if self.flagF: 
-                    m =  100 * 10
+                    m =  100 * 3
                     print("Sampling in FreeSpace \n")
                 else:
                     print("Sampling in Ellipsoid \n")
-                    m = 100 * 5
+                    m = 100 * 1.5
                 # Reach goal points
                 if self.x_goal.parent is not None:
                     self.flagF = False
@@ -159,9 +152,8 @@ class BITStar:
                     cost_current = self.g_T[self.x_goal]
                     if cost_past == cost_current:
                         print("Can't be improved! & WA-BIT is over!")
-                        flag_continue = False
-                    else:
-                        cost_past = cost_current
+                        break
+                    cost_past = cost_current
                     print("Solution Found")
                     plt.title("Wind Aware Batch Informed Trees")
                     plt.xlabel("X")
@@ -290,8 +282,7 @@ class BITStar:
         self.ax.plot(path_x, path_y, path_z, linewidth=2, color='m',linestyle ='--')
         plt.pause(0.001)
         plt.show()
-        return path_x, path_y, path_z
-    
+
     def ExtractPath(self):
         node = self.x_goal
         path_x, path_y, path_z = [node.x], [node.y] ,[node.z]
@@ -379,9 +370,11 @@ class BITStar:
         # 모든 점들이 false라면,
         
         for i in range(N):
-            if self.obs1.collide(PNTs[i]):
-                print("Collision, We will prune it.")
-                return np.inf
+            if len(self.obs_list) is not None:
+                for obs in self.obs_list:
+                    if obs.collide(PNTs[i]):
+                        print("Collision, We will prune it.")
+                        return np.inf
             Velocity_Tan = self.getting_tangential(PNTs[i,:],l0)
             Cost += L0/N / (Velocity_Tan)
         #print("Cost is ",Cost)
@@ -392,9 +385,11 @@ class BITStar:
         tan_values = []
         direction = self.normalize(end.xyz - start.xyz)
         for i in range(n):
-            if not self.obs1.collide(PNTs[i]):
-                tan_value = self.getting_tangential(PNTs[i],direction)
-                tan_values.append(tan_value)
+            if len(self.obs_list) is not None:
+                for obs in self.obs_list:
+                    if not obs.collide(PNTs[i]):
+                        tan_value = self.getting_tangential(PNTs[i],direction)
+                        tan_values.append(tan_value)
         if tan_values:
             sorted_values = np.sort(tan_values)
             best_case = np.max(tan_values)
@@ -448,7 +443,10 @@ class BITStar:
             x_rand = x_rand_before_center.reshape((3,1)) + xCenter.flatten()
             #print("x_rand is",x_rand,"x_rand before adding center is", x_rand_before_center.reshape((3,1)))
             node = Node([x_rand[(0, 0)], x_rand[(1, 0)], x_rand[(2,0)]])
-            in_obs = self.obs1.collide(node.xyz)
+            # in_obs = self.obs1.collide(node.xyz)
+            if len(self.obs_list) is not None:
+                for obs in self.obs_list:
+                    in_obs = obs.collide(node.xyz)
             in_x_range = self.x_range[0] + delta <= node.x <= self.x_range[1] - delta
             in_y_range = self.y_range[0] + delta <= node.y <= self.y_range[1] - delta
             in_z_range = self.z_range[0] + delta <= node.z <= self.z_range[1] - delta
@@ -469,11 +467,13 @@ class BITStar:
             node = Node([random.uniform(self.x_range[0] + delta, self.x_range[1] - delta),
                         random.uniform(self.y_range[0] + delta, self.y_range[1] - delta),
                         random.uniform(self.z_range[0] + delta, self.z_range[1] - delta)])
-            if self.obs1.collide(node.xyz):
-                continue
-            else:
-                Sample.add(node)
-                ind += 1
+            if len(self.obs_list) is not None:
+                for obs in self.obs_list:
+                    if obs.collide(node.xyz):
+                        continue
+                    else:
+                        Sample.add(node)
+                        ind += 1
 
         return Sample
 
@@ -773,29 +773,29 @@ def main():
     va = 20 
     ResolutionType = 'normal'
     
-    # Wind Data Path : Seung
+    # Wind Data Path : 승걸
     onedrive_path = '/Users/seung/WindData/'
-    # Wind Data Path : MinJo
+    # Wind Data Path : 민조
     #onedrive_path = 'C:/Users/LiCS/Documents/MJ/KAIST/Paper/2025 ACC/Code/windData/'
     
     #Mac : OneDrive
+    '''
     u = np.load(f'{onedrive_path}/{ResolutionType}/u_{ResolutionType}.npy')
     v = np.load(f'{onedrive_path}/{ResolutionType}/v_{ResolutionType}.npy')
     w = np.load(f'{onedrive_path}/{ResolutionType}/w_{ResolutionType}.npy')
-
+    '''
     
     #Windows
-    '''
     u = np.load(f'{onedrive_path}u_{ResolutionType}.npy')
     v = np.load(f'{onedrive_path}v_{ResolutionType}.npy')
     w = np.load(f'{onedrive_path}w_{ResolutionType}.npy')
-    '''
+'''
     #print(u.shape,v.shape,w.shape)
     
     print("start!!!")
-    bit = BITStar(x_start, x_goal, eta, iter_max, va, u, v, w)
+    bit = BITStar(x_start, x_goal, eta, iter_max, va, u, v, w, map)
     #bit.draw_things()
-    PATH = bit.planning()
+    bit.planning()
     
     #bit = BITStar(x_start, x_goal, eta, iter_max)
     #bit.animation("Batch Informed Trees (BIT*)")
