@@ -8,6 +8,11 @@ import matplotlib.pyplot as plt
 from bencatel import allen_model_with_bencatel
 from skimage import measure
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+
+class Map:
+    def __init__(self, obs=None) :
+        self.obs = obs
+
 class Node:
     def __init__(self,X):
         # x,y,z : State
@@ -16,6 +21,7 @@ class Node:
         self.z = X[2]
         self.xyz = np.array([self.x,self.y,self.z])
         self.parent = None
+
 class Edge:
     def __init__(self,cr,fpa,duration):
         # cr,fpa : control input
@@ -45,8 +51,8 @@ class Tree:
         self.v_old = set()
         
 ''' Thermal and obstacles setting '''
-class Obstacles:
-    def __init__(self, xyz0, abc, shape, x_range, y_range, z_range):
+class Obstacle:
+    def __init__(self, xyz0, abc, shape):
         '''
         x0, y0, z0 : obstacle center
         a, b, c : axes length of the obstacle
@@ -55,9 +61,6 @@ class Obstacles:
         If d = e = 1 ,f > 1 : a cylinder
             d > 1 , e > 1, f > 1 : a cuboid 
         '''
-        self.x_range = x_range
-        self.y_range = y_range
-        self.z_range = z_range
         self.xyz0 = xyz0
         self.abc = abc  
         self.shape = shape 
@@ -70,7 +73,7 @@ class Obstacles:
         self.F = np.sum(np.power(base, exponent)) - 1
         return self.F
 
-    def draw(self,ax_obstacle,x_start,x_goal):
+    def draw(self, ax):
         ''' Drawing the obstacles' edges '''
         # 음함수 방정식 정의
         def f(x, y, z, xyz0, abc, shape):
@@ -78,8 +81,8 @@ class Obstacles:
             a, b, c = abc
             d, e, f = shape
             return ((x-x0)/a)**(2*d) + ((y-y0)/b)**(2*e) + ((z-z0)/c)**(2*f) - 1
-        # 플롯 범위 설정
 
+        # 플롯 범위 설정
         x_max, x_min = self.xyz0[0] + self.abc[0], self.xyz0[0] - self.abc[0]
         y_max, y_min = self.xyz0[1] + self.abc[1], self.xyz0[1] - self.abc[1]
         z_max, z_min = self.xyz0[2] + self.abc[2], self.xyz0[2] - self.abc[2]
@@ -88,46 +91,41 @@ class Obstacles:
         y_max,y_min = self.y_range[1],self.y_range[0]
         z_max,z_min = self.z_range[1],self.z_range[0]
         '''
-        gap = 5  # 간격을 더 크게 설정
+        gap = 5
+        
         interval = [x_min - gap, x_max + gap, y_min - gap, y_max + gap, z_min - gap, z_max + gap]
+        #print(interval)
 
-        # 3D 좌표 격자 생성 (50개로 분해능 증가)
-        x, y, z = np.mgrid[interval[0]:interval[1]:50j, interval[2]:interval[3]:50j, interval[4]:interval[5]:50j]
+        # 3D 좌표 격자 생성
+        grid_resolution = 10  # 해상도 조정 변수
+        x, y, z = np.mgrid[interval[0]:interval[1]:complex(0, grid_resolution),
+                           interval[2]:interval[3]:complex(0, grid_resolution),
+                           interval[4]:interval[5]:complex(0, grid_resolution)]
+
         # Marching Cubes 알고리즘으로 곡면 추출
-        verts, faces, normals, values = measure.marching_cubes(f(x, y, z, self.xyz0, self.abc, self.shape), level=0,
-            spacing=(self.abc[0]/50, self.abc[1]/50, self.abc[2]/50),
-            step_size=1)
+        verts, faces, normals, values = measure.marching_cubes(f(x, y, z, self.xyz0, self.abc, self.shape), 0)
 
-        # 곡면 중심 계산 후 평행 이동
+        # 곡면 중심 계산
         center = (np.max(verts, axis=0) + np.min(verts, axis=0)) / 2
-        print(center)
-        verts += self.xyz0 - center
-        center_new = (np.max(verts, axis=0) + np.min(verts, axis=0)) / 2
-        print(center_new)
-        # check validity
-        z_max_index = np.argmax(verts[:, 2])
-        verts_at_z_max = verts[z_max_index]
-        print("Z 방향으로 가장 높은 값을 가지는 좌표:", verts_at_z_max)
-        z_min_index = np.argmin(verts[:, 2])
-        verts_at_z_min = verts[z_min_index]
-        print("Z 방향으로 가장 낮은 값을 가지는 좌표:", verts_at_z_min)
+
+        # 곡면 데이터 스케일링 및 평행이동
+        verts -= center                                     # mesh에 맞춰 우선 원점으로 정렬
+        verts  = verts * self.abc / grid_resolution         # 장애물의 크기(abc)를 반영한 스케일링 (장애물은 해상도 크기에 맞게 그려지므로)
+        verts += self.xyz0                                  # obstacle center에 맞게 평행이동
+
+        # 삼각형 메쉬 플롯
         mesh = Poly3DCollection(verts[faces], alpha=0.8, edgecolor='black', facecolor='green')
-        ax_obstacle.add_collection3d(mesh)
+        ax.add_collection3d(mesh)
         
-        # ax_obstacle.set_xlim([np.min(verts[:, 0]), np.max(verts[:, 0])])
-        # ax_obstacle.set_ylim([np.min(verts[:, 1]), np.max(verts[:, 1])])
-        # ax_obstacle.set_zlim([np.min(verts[:, 2]), np.max(verts[:, 2])])
-        ax_obstacle.view_init(elev=10, azim=-85)
-        ax_obstacle.set_xlabel('X')
-        ax_obstacle.set_ylabel('Y')
-        ax_obstacle.set_zlabel('Z')
-        ax_obstacle.set_box_aspect((np.ptp(interval[0:2]), np.ptp(interval[2:4]), np.ptp(interval[4:6])))  # 축 비율 조정(axis equal)
-        ax_obstacle.auto_scale_xyz([self.x_range[0],self.x_range[1]], [self.y_range[0],self.y_range[1]], [self.z_range[0],self.z_range[1]])
-        ax_obstacle.plot([verts_at_z_max[0]], [verts_at_z_max[1]], [verts_at_z_max[2]], marker='o', color='red', markersize=4)
-        ax_obstacle.plot(x_start.x, x_start.y,x_start.z, marker='s', color='blue', markersize=4)
-        ax_obstacle.plot(x_goal.x,x_goal.y,x_goal.z, marker='x', color='blue', markersize=4)
+        # 축 설정 및 표시
+        ax.set_xlabel('X')
+        ax.set_ylabel('Y')
+        ax.set_zlabel('Z')
         
-    def collide(self,pos):
+        # ax.set_box_aspect((np.ptp(interval[0:2]), np.ptp(interval[2:4]), np.ptp(interval[4:6])))  # 축 비율 조정(axis equal)
+        # ax.auto_scale_xyz([self.x_range[0],self.x_range[1]], [self.y_range[0],self.y_range[1]], [self.z_range[0],self.z_range[1]])
+    
+    def collide(self, pos):
         if self.map(pos) < 0:
             return True
         else:
