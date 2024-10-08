@@ -25,6 +25,7 @@ import utils
 import plotting
 from wind_model_v2 import WINDS, Thermals
 
+
 class BITStar:
     def __init__(self, x_start, x_goal, eta, iter_max, va, u, v, w):
         self.x_start = Node(x_start)
@@ -111,8 +112,6 @@ class BITStar:
     
     def planning(self):
         cMin, xCenter = self.prepare()
-        #if self.Tree.QV is None:
-            #print()
         cost_past = np.inf
         #self.fig = plt.figure(figsize = (15,12))
         #self.ax = self.fig.add_subplot(111,projection = '3d')
@@ -121,16 +120,16 @@ class BITStar:
         self.ax.scatter(self.x_goal.x,self.x_goal.y,self.x_goal.z,marker = 'x' ,color = 'blue',s = 20)
         file_path = "data.json"
 
-        # 기존 JSON 파일이 존재하는지 확인
+        # Check the json file
         if os.path.exists(file_path):
             with open(file_path, "r", encoding="utf-8") as file:
                 try:
-                    #data_list = json.load(file)  # 기존 데이터를 리스트로 로드
+                    #data_list = json.load(file)  
                     data_list = []
                     if not isinstance(data_list, list):
-                        data_list = []  # 만약 데이터가 리스트가 아니라면 빈 리스트로 초기화
+                        data_list = []  
                 except json.JSONDecodeError:
-                    data_list = []  # 파일이 비어있거나 잘못된 경우 빈 리스트로 초기화
+                    data_list = []  
         else:
             data_list = []
 
@@ -769,9 +768,9 @@ def main():
     va = 20 
     ResolutionType = 'normal'
     
-    # Wind Data Path : 승걸
+    # Wind Data Path : Seung
     onedrive_path = '/Users/seung/WindData/'
-    # Wind Data Path : 민조
+    # Wind Data Path : MinJo
     #onedrive_path = 'C:/Users/LiCS/Documents/MJ/KAIST/Paper/2025 ACC/Code/windData/'
     
     #Mac : OneDrive
@@ -785,7 +784,7 @@ def main():
     u = np.load(f'{onedrive_path}u_{ResolutionType}.npy')
     v = np.load(f'{onedrive_path}v_{ResolutionType}.npy')
     w = np.load(f'{onedrive_path}w_{ResolutionType}.npy')
-'''
+    '''
     #print(u.shape,v.shape,w.shape)
     
     print("start!!!")

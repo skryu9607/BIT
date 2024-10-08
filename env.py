@@ -107,16 +107,13 @@ class Obstacles:
         # check validity
         z_max_index = np.argmax(verts[:, 2])
         verts_at_z_max = verts[z_max_index]
-        print("Z 방향으로 가장 높은 값을 가지는 좌표:", verts_at_z_max)
+        print("a node has maximum z :", verts_at_z_max)
         z_min_index = np.argmin(verts[:, 2])
         verts_at_z_min = verts[z_min_index]
-        print("Z 방향으로 가장 낮은 값을 가지는 좌표:", verts_at_z_min)
+        print("a node has minimum z :", verts_at_z_min)
         mesh = Poly3DCollection(verts[faces], alpha=0.8, edgecolor='black', facecolor='green')
         ax_obstacle.add_collection3d(mesh)
         
-        # ax_obstacle.set_xlim([np.min(verts[:, 0]), np.max(verts[:, 0])])
-        # ax_obstacle.set_ylim([np.min(verts[:, 1]), np.max(verts[:, 1])])
-        # ax_obstacle.set_zlim([np.min(verts[:, 2]), np.max(verts[:, 2])])
         ax_obstacle.view_init(elev=10, azim=-85)
         ax_obstacle.set_xlabel('X')
         ax_obstacle.set_ylabel('Y')
