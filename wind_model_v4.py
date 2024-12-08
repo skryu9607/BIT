@@ -5,7 +5,20 @@ from matplotlib.colors import Normalize
 import matplotlib.cm as cm
 from noise import pnoise2
 from pytictoc import TicToc
+"""
+Code Information:
+Horizontal Wind: Uses Perlin Noise (difference from wind_model_v1).
+Vertical Wind: Uses the Allen model considering leaning (based on MATLAB rather than the equations in the paper) (difference from wind_model_v2).
+When considering vertical wind, horizontal winds Wx and Wy are modified (parameters that need to be predefined: the average horizontal winds u and v inside the updraft region) (difference from wind_model_v2).
+Resolution: Unified with the same values for x, y, and z, and plot removal (difference from wind_model_v3).
+"""
+"""
+Plot Information:
+2D distribution of horizontal wind at a specific altitude (considering only the x-y horizontal directions).
+Distribution of thermal updraft velocity at a specific altitude (considering only the z vertical direction).
+Plots of wind fields in both horizontal and vertical directions.
 
+"""
 """
 Code 정보
 1. 수평풍 : Perlin Noise 를 이용 (wind_model_v1 과의 차이점)
@@ -23,7 +36,7 @@ Plot 정보
 
 ######################################################################################################
 
-# Perlin 노이즈를 사용하여 2D wind field map 생성
+# 2D wind field map using perlin noise
 
 def noise_wind_field(num_x, num_y, scale, wind_speed, seed):
     np.random.seed(seed)
@@ -45,7 +58,7 @@ def noise_wind_field(num_x, num_y, scale, wind_speed, seed):
     
     return u, v
 
-# Perlin 노이즈를 사용하여 2D wind field map 생성
+
 
 def uniform_wind_field(num_x, num_y, wind_speed):
 
@@ -77,7 +90,7 @@ def allen_model(resolution, z, zi, w_star, x_min, x_max, y_min, y_max, u, v, xc,
     # 상승기류 외곽 반지름 계산 [m]
     r2 = max(10, 0.102 * (z / zi)**(1/3) * (1 - 0.25 * z / zi) * zi )
     
-    # 평균 상승기류 속도 계산 (Lenschow 방정식) [m/s]
+    # Lenschow equation, average mean speed. [m/s]
     w_avg = 1.0 * (z / zi)**(1/3) * (1 - 1.1 * z / zi) * w_star    
     
     # r1/r2 ratio 결정
@@ -206,11 +219,11 @@ def allen_model(resolution, z, zi, w_star, x_min, x_max, y_min, y_max, u, v, xc,
 t = TicToc()
 t.tic()
 
-# Thermal 파라미터 설정
-zi = 4000           # 대류 혼합층 두께 [m]
-w_star = 10         # 상승기류 속도 스케일 [m/s]
-xc = 1800            # 상승기류 중심의 x좌표 (지표면)
-yc = 2400            # 상승기류 중심의 y좌표 (지표면)
+# Setting thermal parameters
+zi = 4000           # Convective boundary layer depth [m]
+w_star = 10         # Updraft velocity scale [m/s]
+xc = 1800           # x-coordinate of the thermal center (at the ground surface)
+yc = 2400           # y-coordinate of the thermal center (at the ground surface)
 
 # 맵 설정 [m] : x, y 축 절반 길이 (맵 중심은 (0,0))
 x_min = -1000
@@ -221,7 +234,7 @@ y_max = 5000
 x_len = x_max - x_min
 y_len = y_max - y_min
 
-# Resolution 설정 (개수)
+# Resolution 
 ResolutionType = 'highest'
 # Coarse 
 if ResolutionType == 'coarse':
@@ -239,8 +252,8 @@ num_z = int(((zi - resolution) / resolution) + 1)
 
 altitudes = np.linspace(resolution, zi, num_z)
 
-# Horizontal Wind 파라미터 설정
-w_hor = 1           # 수평풍 속도 스케일  [m/s]
+# Horizontal Wind 
+w_hor = 1           # horizontal scale
 scale = 0.1         # Perlin noise scale
 seed = 1            # seed number
 
@@ -287,12 +300,12 @@ u_file_path = f'{onedrive_path}u_{ResolutionType}.npy'
 v_file_path = f'{onedrive_path}v_{ResolutionType}.npy'
 w_file_path = f'{onedrive_path}w_{ResolutionType}.npy'
 
-# 데이터 저장
+# Data save
 np.save(u_file_path, u)
 np.save(v_file_path, v)
 np.save(w_file_path, w)
 
-print("파일이 OneDrive에 저장되었습니다.")
+print("Saved the file")
   
 
 ######################################################################################################
